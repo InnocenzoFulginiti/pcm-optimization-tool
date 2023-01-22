@@ -4,15 +4,15 @@
 
 #include <iostream>
 
+
 #include "circuit/Circuit.hpp"
+#include "parser/Parser.hpp"
 
 using namespace std;
 
 int main() {
 
-    Circuit c(5);
-
-    cout << "Circuit size: " << c.getSize() << endl;
+    Parser::parse("../../test/circuits/circ1.qasm");
 
     return 0;
 }
