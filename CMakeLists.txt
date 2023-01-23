@@ -1,22 +1,17 @@
-cmake_minimum_required(VERSION 3.2)
+# set required cmake version
+cmake_minimum_required(VERSION 3.19)
+project(
+        qcprop
+        LANGUAGES CXX
+        DESCRIPTION "qcprop - Quantum Constant Propagation")
 
-project(qcprop)
+# add main library code
+#All .cpp and .hpp files in the src folder and include folder
+file(GLOB_RECURSE ALL_SOURCES "src/*.cpp" "include/*.hpp")
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3")
+#Print all found files (maybe remove later)
+string (REPLACE ";" "\n" ALL_SOURCES_NL "${ALL_SOURCES}")
+message(STATUS "All sources: \n${ALL_SOURCES_NL}")
 
-set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR})
-
-set(QCPROP_INSTALL_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
-set(QCPROP_INSTALL_BIN_DIR ${PROJECT_SOURCE_DIR}/bin)
-set(QCPROP_INSTALL_LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
-
-set(QCPROP_HEADERS_DIR ${PROJECT_SOURCE_DIR}/src/circuits)
-
-include_directories(${QCPROP_INSTALL_INCLUDE_DIR})
-include_directories(${QCPROP_HEADERS_DIR})
-
-add_subdirectory(src)
-#add_subdirectory(test)
-
-
+add_executable("${PROJECT_NAME}" ${ALL_SOURCES})
+target_compile_features("${PROJECT_NAME}" PRIVATE cxx_std_17)
