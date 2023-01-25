@@ -667,7 +667,7 @@ namespace qc {
     }
 
     void QuantumComputation::dump(const std::string& filename, Format format) {
-        assert(std::count(filename.begin(), filename.end(), '.') == 1);
+        //assert(std::count(filename.begin(), filename.end(), '.') == 1);
         auto of = std::ofstream(filename);
         if (!of.good()) {
             throw QFRException("[dump] Error opening file: " + filename);
@@ -1077,6 +1077,25 @@ namespace qc {
             if (auto* symOp = dynamic_cast<SymbolicOperation*>(op.get())) {
                 symOp->instantiate(assignment);
             }
+        }
+    }
+
+    std::vector<std::unique_ptr<Operation>> QuantumComputation::getOps() const {
+        std::vector<std::unique_ptr<Operation>> ret;
+
+        for (const auto& op: ops) {
+            ret.push_back(op->clone());
+        }
+
+        return ret;
+    }
+
+    QuantumComputation::QuantumComputation(const std::size_t nq, std::vector<std::unique_ptr<Operation>> &ops): QuantumComputation() {
+        addQubitRegister(nq);
+        addClassicalRegister(nq);
+
+        for (auto& op: ops) {
+            emplace_back<Operation>(std::move(op));
         }
     }
 } // namespace qc

@@ -202,6 +202,7 @@ namespace qc {
         }
         QuantumComputation(const QuantumComputation& qc)     = delete;
         QuantumComputation(QuantumComputation&& qc) noexcept = default;
+        QuantumComputation(const std::size_t nq, std::vector<std::unique_ptr<Operation>>& ops);
 
         QuantumComputation& operator=(const QuantumComputation& qc) = delete;
 
@@ -233,6 +234,8 @@ namespace qc {
             return qc;
         }
 
+        //Write getter for ops
+        std::vector<std::unique_ptr<Operation>> getOps() const;
         [[nodiscard]] virtual std::size_t         getNops() const { return ops.size(); }
         [[nodiscard]] std::size_t                 getNqubits() const { return nqubits + nancillae; }
         [[nodiscard]] std::size_t                 getNancillae() const { return nancillae; }
