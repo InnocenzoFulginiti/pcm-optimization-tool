@@ -28,13 +28,10 @@ public:
         this->map.clear();
     }
 
-    void print(std::ostream& os) const;
+    void print(std::ostream &os) const;
 
     //Iterator over map entries
     typedef std::map<BitSet, Complex>::iterator iterator;
-
-    [[nodiscard]] int countQubitIisZero(int qubit) const;
-    [[nodiscard]] int countQubitIisOne(int qubit) const;
 
     iterator begin() {
         return this->map.begin();
@@ -45,12 +42,12 @@ public:
     }
 
     //Define operator []
-    Complex& operator[](const BitSet& key) {
+    Complex &operator[](const BitSet &key) {
         return this->map.operator[](key);
     }
 
     //Define operator <<
-    friend std::ostream& operator<<(std::ostream& os, const QubitState& qubitState) {
+    friend std::ostream &operator<<(std::ostream &os, const QubitState &qubitState) {
         qubitState.print(os);
         return os;
     }
@@ -61,6 +58,10 @@ public:
 private:
     size_t nQubits;
     std::map<BitSet, Complex> map;
+
+    [[nodiscard]] int countQubitIisZero(int qubit) const;
+
+    [[nodiscard]] int countQubitIisOne(int qubit) const;
 };
 
 

@@ -8,31 +8,31 @@
 
 UnionTable::UnionTable(size_t nQubits) {
     this->nQubits = nQubits;
-    this->table = new QubitStateOrTop [nQubits];
+    this->quReg = new QubitStateOrTop [nQubits];
     for(int i = 0; i < (int) nQubits; i++) {
-        this->table[i] = std::make_shared<QubitState>(1);
+        this->quReg[i] = std::make_shared<QubitState>(1);
     }
 }
 
 UnionTable::~UnionTable() {
-    delete[] this->table;
+    delete[] this->quReg;
 }
 
 //Combine UnionTable entries of two qubits. If either is Top, the result is Top.
 //If both are QubitStates, the result is the tensor product of the two.
 void UnionTable::combine(size_t qubit1, size_t qubit2) {
-    if (std::holds_alternative<TOP>(this->table[qubit1])) {
-        this->table[qubit2] = TOP::T;
+    if (std::holds_alternative<TOP>(this->quReg[qubit1])) {
+        this->quReg[qubit2] = TOP::T;
         return;
     }
     
-    if (std::holds_alternative<TOP>(this->table[qubit2])) {
-        this->table[qubit1] = TOP::T;
+    if (std::holds_alternative<TOP>(this->quReg[qubit2])) {
+        this->quReg[qubit1] = TOP::T;
         return;
     }
 
-    QubitState* qubitState1 = std::get<std::shared_ptr<QubitState>>(this->table[qubit1]).get();
-    QubitState* qubitState2 = std::get<std::shared_ptr<QubitState>>(this->table[qubit2]).get();
+    QubitState* qubitState1 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit1]).get();
+    QubitState* qubitState2 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit2]).get();
 
     if(qubitState1 == qubitState2) {
         std::cerr << "Error: Qubit " << qubit1 << " and Qubit " << qubit2 << " are already combined." << std::endl;
@@ -44,10 +44,10 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     std::vector<int> qubitState2Indices{};
 
     for (int i = 0; i < (int) (this->nQubits) ; ++i) {
-        if(std::get<std::shared_ptr<QubitState>>(this->table[i]).get() == qubitState1) {
+        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState1) {
             qubitState1Indices.emplace_back(i);
         }
-        if(std::get<std::shared_ptr<QubitState>>(this->table[i]).get() == qubitState2) {
+        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState2) {
             qubitState2Indices.emplace_back(i);
         }
     }
@@ -107,9 +107,9 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
 
     //Replace old qubitStates with new one
     for (int i = 0; i < (int) nQubits; i++) {
-        if(std::get<std::shared_ptr<QubitState>>(this->table[i]).get() == qubitState1
-            || std::get<std::shared_ptr<QubitState>>(this->table[i]).get() == qubitState2) {
-            this->table[i] = newQubitState;
+        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState1
+            || std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState2) {
+            this->quReg[i] = newQubitState;
         }
     }
 }
@@ -122,10 +122,10 @@ std::string UnionTable::to_string() const {
     std::stringstream os;
     for(int i = 0; i < (int) nQubits; i++) {
         os << i << ": -> ";
-        if (std::holds_alternative<TOP>(this->table[i])) {
+        if (std::holds_alternative<TOP>(this->quReg[i])) {
             os << "Top" << std::endl;
         } else {
-            std::shared_ptr<QubitState> qubitState = std::get<std::shared_ptr<QubitState>>(this->table[i]);
+            std::shared_ptr<QubitState> qubitState = std::get<std::shared_ptr<QubitState>>(this->quReg[i]);
             os << std::hex << qubitState << std::dec << ": ";
             qubitState->print(os);
             os << std::endl;

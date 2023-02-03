@@ -15,7 +15,15 @@ public:
     Complex(double re, double im) : value(re, im) {}
     Complex(double re) : value(re) {}
 
-    //Write real/imag getters
+    //Write real/imag getters and setters
+    void real(double re) {
+        this->value.real(re);
+    }
+
+    void imag(double im) {
+        this->value.imag(im);
+    }
+
     double real() {
         return this->value.real();
     }
@@ -68,6 +76,10 @@ public:
 
     bool operator==(const Complex& other) const {
         return Complex(value - other.value).isZero();
+    }
+
+    bool operator!=(const Complex& other) const {
+        return !(*this == other);
     }
 
     [[nodiscard]] bool isZero() const {

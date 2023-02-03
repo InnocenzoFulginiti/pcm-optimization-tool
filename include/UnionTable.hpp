@@ -35,12 +35,16 @@ public:
     [[nodiscard]] std::string to_string() const;
 
     void setTable(QubitStateOrTop* newTable) {
-        this->table = newTable;
+        this->quReg = newTable;
+    }
+
+    QubitStateOrTop* getTable() {
+        return this->quReg;
     }
 
 private:
     size_t nQubits;
-    QubitStateOrTop* table;
+    QubitStateOrTop* quReg;
 };
 
 
