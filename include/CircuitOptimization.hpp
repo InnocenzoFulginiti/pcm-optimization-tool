@@ -6,11 +6,12 @@
 #define QCPROP_CIRCUITOPTIMIZATION_HPP
 
 #include <vector>
+#include "QuantumComputation.hpp"
 #include "operations/Operation.hpp"
 
 class CircuitOptimization {
 public:
-    [[nodiscard]] virtual std::vector<std::unique_ptr<qc::Operation>> optimize(std::vector<std::unique_ptr<qc::Operation>> ops) const = 0;
+    virtual qc::QuantumComputation optimize(qc::QuantumComputation& qc) const = 0;
 };
 
 

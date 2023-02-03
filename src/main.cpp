@@ -5,6 +5,8 @@
 #include <string>
 #include <iostream>
 #include "../include/QuantumComputation.hpp"
+#include "../include/CircuitOptimization.hpp"
+#include "../include/ConstantPropagation.hpp"
 
 
 using namespace std;
@@ -21,19 +23,20 @@ int main() {
     qc.print(std::cout);
     std::cout << std::endl;
 
-    //Vector of Operations that represent the entire Circuit
-    auto ops = qc.getOps();
+    //List of CircuitOptimizations that are all allplied to ops
+    std::vector<std::unique_ptr<CircuitOptimization>> optimizations;
+    optimizations.push_back(std::make_unique<ConstantPropagation>());
 
-    //Modify circuit and remove operations with erase(i)
-    ops.erase(ops.begin()+1);
-    ops.erase(ops.begin()+2);
+    //Apply all CircuitOptimizations to ops
+    for (auto& opt : optimizations) {
+        opt->optimize(qc);
+    }
 
-    //Add Operation to qc
-    qc::QuantumComputation qc_out(nQubits, ops);
 
-    qc_out.print(std::cout);
-
-    qc_out.dump(FILENAME_OUT);
+    for(auto& gate : qc) {
+        std::cout << gate->getName() << std::endl;
+        gate->print(std::cout);
+    }
 
     return 0;
 }
