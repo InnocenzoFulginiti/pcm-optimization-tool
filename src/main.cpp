@@ -17,8 +17,6 @@ int main() {
 
     qc::QuantumComputation qc(FILENAME_IN);
 
-    size_t nQubits = qc.getNqubits();
-
     //Print the circuit
     qc.print(std::cout);
     std::cout << std::endl;

@@ -15,11 +15,11 @@
 
 class BitSet {
 public:
-    BitSet(): bits(), size(MAX_QUBITS) {}
-    BitSet(int value): bits(value), size(MAX_QUBITS) {}
-    BitSet(size_t size, int value): bits(value), size(size) {};
-    BitSet(std::bitset<MAX_QUBITS> bits): bits(bits), size(MAX_QUBITS) {}
-    BitSet(size_t size, std::bitset<MAX_QUBITS> bits): bits(bits), size(size) {}
+    BitSet(): size(MAX_QUBITS), bits() {}
+    BitSet(int value): size(MAX_QUBITS), bits(value) {}
+    BitSet(size_t size, int value): size(size), bits(value) {};
+    explicit BitSet(std::bitset<MAX_QUBITS> bits): size(MAX_QUBITS), bits(bits) {}
+    BitSet(size_t size, std::bitset<MAX_QUBITS> bits): size(size), bits(bits) {}
 
     ~BitSet() = default;
 

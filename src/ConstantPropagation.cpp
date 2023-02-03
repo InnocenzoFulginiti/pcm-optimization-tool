@@ -8,8 +8,8 @@
 qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) const {
     UnionTable table(3);
     //Define array of complex numbers
-    Complex I[4] = {1, 0, 0, 1};
-    Complex X[4] = {0, 1, 1, 0};
+
+    qc.print(std::cout);
 
     auto* testTable = new QubitStateOrTop[3]{
             std::make_shared<QubitState>(2),

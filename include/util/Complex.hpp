@@ -15,6 +15,15 @@ public:
     Complex(double re, double im) : value(re, im) {}
     Complex(double re) : value(re) {}
 
+    //Write real/imag getters
+    double real() {
+        return this->value.real();
+    }
+
+    double imag() {
+        return this->value.imag();
+    }
+
     //Pass through operators from std::complex
     Complex& operator+=(const Complex& other) {
         value += other.value;

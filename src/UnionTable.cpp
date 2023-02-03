@@ -9,7 +9,7 @@
 UnionTable::UnionTable(size_t nQubits) {
     this->nQubits = nQubits;
     this->table = new QubitStateOrTop [nQubits];
-    for(int i = 0; i < nQubits; i++) {
+    for(int i = 0; i < (int) nQubits; i++) {
         this->table[i] = std::make_shared<QubitState>(1);
     }
 }
@@ -43,7 +43,7 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     std::vector<int> qubitState1Indices{};
     std::vector<int> qubitState2Indices{};
 
-    for (int i = 0; i < this->nQubits ; ++i) {
+    for (int i = 0; i < (int) (this->nQubits) ; ++i) {
         if(std::get<std::shared_ptr<QubitState>>(this->table[i]).get() == qubitState1) {
             qubitState1Indices.emplace_back(i);
         }
@@ -106,7 +106,7 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     }
 
     //Replace old qubitStates with new one
-    for (int i = 0; i < nQubits; i++) {
+    for (int i = 0; i < (int) nQubits; i++) {
         if(std::get<std::shared_ptr<QubitState>>(this->table[i]).get() == qubitState1
             || std::get<std::shared_ptr<QubitState>>(this->table[i]).get() == qubitState2) {
             this->table[i] = newQubitState;
@@ -120,7 +120,7 @@ void UnionTable::print(std::ostream &os) const {
 
 std::string UnionTable::to_string() const {
     std::stringstream os;
-    for(int i = 0; i < nQubits; i++) {
+    for(int i = 0; i < (int) nQubits; i++) {
         os << i << ": -> ";
         if (std::holds_alternative<TOP>(this->table[i])) {
             os << "Top" << std::endl;

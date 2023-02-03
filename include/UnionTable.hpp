@@ -5,7 +5,7 @@
 #ifndef QCPROP_UNIONTABLE_HPP
 #define QCPROP_UNIONTABLE_HPP
 
-
+#include <memory>
 #include <variant>
 #include <vector>
 #include "QubitState.hpp"
@@ -27,6 +27,10 @@ public:
     void combine(size_t qubit1, size_t qubit2);
 
     void print(std::ostream& os) const;
+
+    size_t size() const {
+        return this->nQubits;
+    }
 
     [[nodiscard]] std::string to_string() const;
 
