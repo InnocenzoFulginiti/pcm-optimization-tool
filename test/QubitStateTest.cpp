@@ -8,6 +8,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "UnionTable.hpp"
+#include "Definitions.hpp"
 
 TEST_CASE("QubitState normalization example") {
     Complex c1(1, 0);
@@ -43,7 +44,7 @@ TEST_CASE("QubitState normalization random test") {
     REQUIRE(qs.norm() == Catch::Approx(1.0));
 }
 
-SCENARIO("QubitState Merge Example") {
+TEST_CASE("QubitState Merge Example") {
     //Build Register for testing
     /*
      * 0&2: |00> = 1/sqrt(2), |11> = 1/sqrt(2)
@@ -88,4 +89,31 @@ SCENARIO("QubitState Merge Example") {
     REQUIRE((*result)[BitSet(3, 5)] == expected5);
 
     REQUIRE((*result)[BitSet(3, 7)] == expected7);
+}
+
+TEST_CASE("Apply example gates") {
+    Complex X[4] = {
+            Complex(0, 0), Complex(1, 0),
+            Complex(1, 0), Complex(0, 0)
+    };
+
+    Complex I[4] = {
+            Complex(1, 0), Complex(0, 0),
+            Complex(0, 0), Complex(1, 0)
+    };
+
+    Complex H[4] = {
+            Complex(1/qc::SQRT_2, 0), Complex(1/qc::SQRT_2, 0),
+            Complex(1/qc::SQRT_2, 0), Complex(-1/qc::SQRT_2, 0)
+    };
+
+    QubitState qs(1);
+    std::cout << qs << std::endl;
+    std::cout << "Applying X gate" << std::endl;
+    qs = qs.applyGate(0, X);
+    qs.print(std::cout);
+
+    std::cout << std::endl << "Applying H gate" << std::endl;
+    qs = qs.applyGate(0, H);
+    qs.print(std::cout);
 }

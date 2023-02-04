@@ -128,3 +128,48 @@ QubitState::combine(const std::shared_ptr<QubitState>& qubitState1, std::vector<
 
     return newQubitState;
 }
+
+QubitState QubitState::applyGate(size_t index, Complex matrix[4]) const {
+    QubitState newQubitState(this->nQubits);
+    newQubitState.clear();
+
+    for (auto const& [key, val] : this->map) {
+        if(val.isZero())
+            continue;
+
+        /*
+         * Matrix = | a b | = [a b c d]
+         *          | c d |
+         */
+        if((key & (1 << index)) == 0) {
+            //Qubit is 0
+            if(!matrix[0].isZero()) {
+                newQubitState[key] += val * matrix[0];
+            }
+            if(!matrix[2].isZero()) {
+                newQubitState[BitSet(this->nQubits, key | (1 << index))] += val * matrix[2];
+            }
+        } else {
+            //Qubit is 1
+            if(!matrix[1].isZero()) {
+                newQubitState[key & ~(1 << index)] += val * matrix[1];
+            }
+            if(!matrix[3].isZero()) {
+                newQubitState[key] += val * matrix[3];
+            }
+        }
+    }
+
+    newQubitState.removeZeroEntries();
+    //TODO: Check if number of amplitudes is too big
+
+    return newQubitState;
+}
+
+void QubitState::removeZeroEntries() {
+    for(auto [key, value] : this->map) {
+        if(value.isZero()){
+            this->map.erase(key);
+        }
+    }
+}

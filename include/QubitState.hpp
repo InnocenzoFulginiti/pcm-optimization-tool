@@ -76,6 +76,7 @@ public:
 
     void normalize();
 
+    QubitState applyGate(size_t index, Complex *matrix) const;
 private:
     size_t nQubits;
     std::map<BitSet, Complex> map;
@@ -84,7 +85,7 @@ private:
 
     [[nodiscard]] int countQubitIisOne(int qubit) const;
 
-
+    void removeZeroEntries();
 };
 
 

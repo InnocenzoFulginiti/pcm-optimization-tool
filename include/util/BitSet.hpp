@@ -20,6 +20,7 @@ public:
     BitSet(size_t size, int value): size(size), bits(value) {};
     explicit BitSet(std::bitset<MAX_QUBITS> bits): size(MAX_QUBITS), bits(bits) {}
     BitSet(size_t size, std::bitset<MAX_QUBITS> bits): size(size), bits(bits) {}
+    BitSet(size_t size, BitSet copy): size(size), bits(copy.bits) {}
 
     ~BitSet() = default;
 
