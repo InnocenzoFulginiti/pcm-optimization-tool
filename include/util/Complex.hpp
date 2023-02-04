@@ -1,9 +1,7 @@
 //
 // Created by Jakob on 01/02/2023.
 //
-
-#ifndef QCPROP_COMPLEX_HPP
-#define QCPROP_COMPLEX_HPP
+#pragma once
 
 
 #include <complex>
@@ -30,6 +28,11 @@ public:
 
     double imag() {
         return this->value.imag();
+    }
+
+    //Norm
+    [[nodiscard]] double norm() const {
+        return std::norm(value);
     }
 
     //Pass through operators from std::complex
@@ -94,6 +97,3 @@ private:
     std::complex<double> value;
 
 };
-
-
-#endif //QCPROP_COMPLEX_HPP

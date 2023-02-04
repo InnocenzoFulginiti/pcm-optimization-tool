@@ -62,7 +62,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(tests
         test/main.cpp
         test/UnionTableTest.cpp
-        test/ComplexTest.cpp)
+        test/ComplexTest.cpp test/QubitStateTest.cpp)
 
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)

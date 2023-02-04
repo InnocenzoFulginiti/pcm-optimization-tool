@@ -6,14 +6,9 @@
 #include "../include/UnionTable.hpp"
 
 qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) const {
-    UnionTable table(3);
-    //Define array of complex numbers
+    UnionTable table(qc.getNqubits());
 
-    qc.print(std::cout);
-
-
-
-    table.print(std::cout);
+    //Iterate over
 
     table.combine(0, 1);
 

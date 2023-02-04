@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 
+#include "../Definitions.hpp"
+
 namespace qc {
     // Natively supported operations of the QFR library
     enum OpType : std::uint8_t {

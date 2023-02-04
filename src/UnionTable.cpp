@@ -31,8 +31,8 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
         return;
     }
 
-    QubitState* qubitState1 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit1]).get();
-    QubitState* qubitState2 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit2]).get();
+    std::shared_ptr<QubitState> qubitState1 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit1]);
+    std::shared_ptr<QubitState> qubitState2 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit2]);
 
     if(qubitState1 == qubitState2) {
         std::cerr << "Error: Qubit " << qubit1 << " and Qubit " << qubit2 << " are already combined." << std::endl;
@@ -44,71 +44,21 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     std::vector<int> qubitState2Indices{};
 
     for (int i = 0; i < (int) (this->nQubits) ; ++i) {
-        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState1) {
+        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState1) {
             qubitState1Indices.emplace_back(i);
         }
-        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState2) {
+        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState2) {
             qubitState2Indices.emplace_back(i);
         }
     }
 
-    //Find how to interlace indices (so they are sorted again)
-    std::vector<bool> interlace{}; //true = qubitState1, false = qubitState2
-    while (!qubitState1Indices.empty() || !qubitState2Indices.empty()) {
-        //Only one of the two is empty
-        if(qubitState1Indices.empty()) {
-            interlace.emplace_back(false);
-            qubitState2Indices.erase(qubitState2Indices.begin());
-            continue;
-        }
-        if (qubitState2Indices.empty()) {
-            interlace.emplace_back(true);
-            qubitState1Indices.erase(qubitState1Indices.begin());
-            continue;
-        }
-
-        //Both are not empty
-        if (qubitState1Indices[0] < qubitState2Indices[0]) {
-            interlace.emplace_back(true);
-            qubitState1Indices.erase(qubitState1Indices.begin());
-        } else {
-            interlace.emplace_back(false);
-            qubitState2Indices.erase(qubitState2Indices.begin());
-        }
-    }
-
-    std::shared_ptr<QubitState> newQubitState = std::make_shared<QubitState>(QubitState(qubitState1->getNQubits() + qubitState2->getNQubits()));
-    newQubitState->clear();
-
-    //Iterate over qubitState entries
-    for(auto [key1, value1] : *qubitState1) {
-        for(auto [key2, value2] : *qubitState2) {
-            //Calulate new key
-            BitSet newKey = BitSet(qubitState1->getNQubits() + qubitState2->getNQubits(), 0);
-            int nextBitNew = 0;
-            int nextBit1 = 0;
-            int nextBit2 = 0;
-            for(bool next1 : interlace) {
-                if(next1) {
-                    newKey |= ((key1 & (1 << nextBit1)) >> nextBit1) << nextBitNew;
-                    nextBit1++;
-                } else {
-                    newKey |= ((key2 & (1 << nextBit2)) >> nextBit2) << nextBitNew;
-                    nextBit2++;
-                }
-                nextBitNew++;
-            }
-
-
-            //Insert new value
-            (*newQubitState)[newKey] = value1 * value2;
-        }
-    }
+   std::shared_ptr<QubitState> newQubitState = QubitState::combine(qubitState1, qubitState1Indices,
+                                                                   qubitState2, qubitState2Indices);
 
     //Replace old qubitStates with new one
     for (int i = 0; i < (int) nQubits; i++) {
-        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState1
-            || std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get() == qubitState2) {
+        if(std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState1
+            || std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState2) {
             this->quReg[i] = newQubitState;
         }
     }

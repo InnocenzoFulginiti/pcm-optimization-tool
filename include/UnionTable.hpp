@@ -28,6 +28,10 @@ public:
 
     void print(std::ostream& os) const;
 
+    QubitStateOrTop& operator[](size_t index) {
+        return this->quReg[index];
+    }
+
     size_t size() const {
         return this->nQubits;
     }
