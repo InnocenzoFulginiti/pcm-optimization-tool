@@ -66,6 +66,9 @@ public:
         return os;
     }
 
+    //Define operator ==
+    bool operator==(const QubitState &rhs) const;
+
     //to_string
     [[nodiscard]] std::string to_string() const;
 

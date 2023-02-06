@@ -10,6 +10,8 @@
 #include "UnionTable.hpp"
 #include "Definitions.hpp"
 
+#define CHECK_MESSAGE(cond, msg) do { INFO(msg); CHECK(cond); } while((void)0, 0)
+
 TEST_CASE("QubitState normalization example") {
     Complex c1(1, 0);
     Complex c2(1, 0);
@@ -32,12 +34,9 @@ TEST_CASE("QubitState normalization random test") {
     auto c1 = Complex(p1, p2);
     auto c2 = Complex(p3, p4);
 
-
     QubitState qs(1);
     qs[BitSet(1, 0)] = c1;
     qs[BitSet(1, 1)] = c2;
-
-    std::cout << qs << std::endl;
 
     qs.normalize();
 
@@ -108,12 +107,94 @@ TEST_CASE("Apply example gates") {
     };
 
     QubitState qs(1);
-    std::cout << qs << std::endl;
-    std::cout << "Applying X gate" << std::endl;
     qs = qs.applyGate(0, X);
-    qs.print(std::cout);
 
-    std::cout << std::endl << "Applying H gate" << std::endl;
     qs = qs.applyGate(0, H);
-    qs.print(std::cout);
+}
+
+TEST_CASE("Test Gate Identities") {
+    Complex X[4] = {
+            Complex(0, 0), Complex(1, 0),
+            Complex(1, 0), Complex(0, 0)
+    };
+
+    Complex I[4] = {
+            Complex(1, 0), Complex(0, 0),
+            Complex(0, 0), Complex(1, 0)
+    };
+
+    Complex Y[4] = {
+            Complex(0, 0), Complex(0, -1),
+            Complex(0, 1), Complex(0, 0)
+    };
+
+    Complex Z[4] = {
+            Complex(1, 0), Complex(0, 0),
+            Complex(0, 0), Complex(-1, 0)
+    };
+
+    Complex H[4] = {
+            Complex(1/qc::SQRT_2, 0), Complex(1/qc::SQRT_2, 0),
+            Complex(1/qc::SQRT_2, 0), Complex(-1/qc::SQRT_2, 0)
+    };
+
+    Complex S[4] = {
+            Complex(1, 0), Complex(0, 0),
+            Complex(0, 0), Complex(0, 1)
+    };
+
+    Complex T[4] = {
+            Complex(1, 0), Complex(0, 0),
+            Complex(0, 0), Complex(1/qc::SQRT_2, 1/qc::SQRT_2)
+    };
+
+    auto nQubits = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+    QubitState qs(nQubits);
+    qs.clear();
+
+    for(int key = 1 << (nQubits - 1); key >= 0; key--) {
+        //Generate Amplitudes for 2/3 of keys
+        if(rand()%3 > 0) {
+            qs[BitSet(nQubits, key)] = Complex(rand()%100, rand()%100);
+        } else {
+            continue;
+        }
+    }
+
+    qs.normalize();
+    QubitState result(0);
+
+    for (int target = 0; target < nQubits; target++) {
+
+        //Use Relationships to verify
+
+        //I = I
+        result = qs.applyGate(target, I);
+        CHECK_MESSAGE(qs == result, "I = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) + ", qs: " + qs.to_string() + ", result: " + result.to_string());
+
+        //XX = I
+        result = qs.applyGate(target, X).applyGate(target, X);
+        CHECK_MESSAGE(qs == result, "XX = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) + ", qs: " + qs.to_string() + ", result: " + result.to_string());
+
+        //HH = I
+        result = qs.applyGate(target, H).applyGate(target, H);
+        CHECK_MESSAGE(qs == result, "HH = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) + ", qs: " + qs.to_string() + ", result: " + result.to_string());
+
+        //ZZ = I
+        result = qs.applyGate(target, Z).applyGate(target, Z);
+        CHECK_MESSAGE(qs == result, "ZZ = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) + ", qs: " + qs.to_string() + ", result: " + result.to_string());
+
+        //YY = I
+        result = qs.applyGate(target, Y).applyGate(target, Y);
+        CHECK_MESSAGE(qs == result, "YY = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) + ", qs: " + qs.to_string() + ", result: " + result.to_string());
+
+        //SS = Z
+        result = qs.applyGate(target, S).applyGate(target, S);
+        CHECK_MESSAGE(qs.applyGate(target, Z) == result, "SS = Z Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) + ", qs: " + qs.to_string() + ", result: " + result.to_string());
+
+        //TT = S
+        result = qs.applyGate(target, T).applyGate(target, T);
+        CHECK_MESSAGE(qs.applyGate(target, S) == result, "TT = S Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) + ", qs: " + qs.to_string() + ", result: " + result.to_string());
+    }
 }

@@ -167,9 +167,16 @@ QubitState QubitState::applyGate(size_t index, Complex matrix[4]) const {
 }
 
 void QubitState::removeZeroEntries() {
-    for(auto [key, value] : this->map) {
-        if(value.isZero()){
-            this->map.erase(key);
+    auto it = this->map.begin();
+    while(it != this->map.end()) {
+        if (it->second.isZero()) {
+            it = this->map.erase(it);
+        } else {
+            it++;
         }
     }
+}
+
+bool QubitState::operator==(const QubitState &rhs) const {
+    return map == rhs.map;
 }
