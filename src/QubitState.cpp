@@ -21,26 +21,6 @@ size_t QubitState::getNQubits() const {
     return this->nQubits;
 }
 
-int QubitState::countQubitIisZero(int qubit) const {
-    int count = 0;
-    for (auto const &[key, val]: this->map) {
-        if (!key[qubit]) {
-            count++;
-        }
-    }
-    return count;
-}
-
-int QubitState::countQubitIisOne(int qubit) const {
-    int count = 0;
-    for (auto const &[key, val]: this->map) {
-        if (key[qubit]) {
-            count++;
-        }
-    }
-    return count;
-}
-
 void QubitState::print(std::ostream &os) const {
     os << this->to_string();
 }
@@ -110,6 +90,7 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
             int nextBitNew = 0;
             int nextBit1 = 0;
             int nextBit2 = 0;
+            //TODO RENAME
             for (bool next1: interlace) {
                 if (next1) {
                     newKey |= ((key1 & (1 << nextBit1)) >> nextBit1) << nextBitNew;
@@ -189,6 +170,25 @@ bool QubitState::canActivate(size_t index) const {
     return false;
 }
 
+std::pair<size_t, size_t> QubitState::countActivations(std::vector<size_t> indices) {
+    size_t zeros = 0;
+    size_t ones = 0;
+    BitSet mask(0);
+    for (size_t index: indices) {
+        mask |= 1 << index;
+    }
+
+    for (auto const &[key, val]: this->map) {
+        if ((key & mask) == mask) {
+            ones++;
+        } else {
+            zeros++;
+        }
+    }
+
+    return {zeros, ones};
+}
+
 bool QubitState::canActivate(const std::vector<size_t> &indices) const {
     BitSet mask(0);
     for (int index: indices) {
@@ -204,49 +204,58 @@ bool QubitState::canActivate(const std::vector<size_t> &indices) const {
     return false;
 }
 
+bool QubitState::alwaysActivated(const std::vector<size_t> &indices) const {
+    BitSet mask(0);
+    for (int index: indices) {
+        mask |= 1 << index;
+    }
+
+    for (auto const &[key, val]: this->map) {
+        if ((key & mask) != mask) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 QubitState QubitState::clone() const {
     auto clone = QubitState(QubitState(this->nQubits));
     clone.map = this->map;
     return clone;
 }
 
-void QubitState::applyGate(size_t target, std::vector<size_t> controls, Complex *matrix) {
+void QubitState::applyGate(size_t target, const std::vector<size_t> &controls, Complex *matrix) {
     if (controls.empty()) {
         this->applyGate(target, matrix);
         return;
     }
 
-
     BitSet mask(0);
-    for (int index: controls) {
+    for (size_t index: controls) {
         mask |= 1 << index;
     }
 
-    Complex activatedAmplitude = 0;
-    Complex notActivatedAmplitude = 0;
+    //Split amplitudes into activated and deactivated
+    QubitState activated(this->nQubits);
+    activated.clear();
+    QubitState deactivated(this->nQubits);
+    deactivated.clear();
 
-    for (auto const &[key, val]: this->map) {
-        if (mask == (key & mask)) {
-            activatedAmplitude += val;
+    for (auto const [key, value]: this->map) {
+        if ((key & mask) == mask) {
+            activated[key] = value;
         } else {
-            notActivatedAmplitude += val;
+            deactivated[key] = value;
         }
     }
 
-    if (activatedAmplitude == 0) {
-        return;
-    } else if (notActivatedAmplitude == 0) {
-        this->applyGate(target, matrix);
-    }
+    //Apply gate to activated amplitudes
+    activated.applyGate(target, matrix);
 
-    QubitState notActivatedQubitState = this->clone();
-    QubitState activatedQubitState = this->clone();
-    activatedQubitState.applyGate(target, matrix);
-
-    //Combine States
-    this->map.clear();
-    for (auto const &[key, val]: notActivatedQubitState.map) {
-        //TODO: Is this right? Probably not
-        this->map[key] = val / notActivatedAmplitude + activatedQubitState[key] / activatedAmplitude;
+    //Merge activated and deactivated amplitudes
+    this->map = activated.map;
+    for (auto const [key, value]: deactivated.map) {
+        this->map[key] = value;
     }
 }

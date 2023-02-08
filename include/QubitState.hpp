@@ -83,22 +83,21 @@ public:
 
     void normalize();
 
-    //Return if qubit at index can be one
     [[nodiscard]] bool canActivate(size_t index) const;
 
     [[nodiscard]] bool canActivate(const std::vector<size_t> &indices) const;
 
+    [[nodiscard]] bool alwaysActivated(const std::vector<size_t> &indices) const;
+
+    std::pair<size_t, size_t> countActivations(std::vector<size_t> controls);
+
     void applyGate(size_t target, Complex *matrix);
 
-    void applyGate(size_t target, std::vector<size_t> controls, Complex *matrix);
+    void applyGate(size_t target, const std::vector<size_t>& controls, Complex *matrix);
 
 private:
     size_t nQubits;
     std::map<BitSet, Complex> map;
-
-    [[nodiscard]] int countQubitIisZero(int qubit) const;
-
-    [[nodiscard]] int countQubitIisOne(int qubit) const;
 
     void removeZeroEntries();
 };

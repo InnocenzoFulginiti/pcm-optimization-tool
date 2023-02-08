@@ -47,21 +47,23 @@ public:
         return this->quReg;
     }
 
-    size_t indexInState(size_t qubit) const;
+    [[nodiscard]] size_t indexInState(size_t qubit) const;
 
-    bool canActivate(size_t qubit) const;
+    [[nodiscard]] bool canActivate(size_t qubit) const;
 
-    bool canActivate(std::vector<size_t> controls) const;
+    [[nodiscard]] bool canActivate(std::vector<size_t> controls) const;
 
-    bool isTop(size_t index);
+    [[nodiscard]] bool isTop(size_t index) const;
+
+    std::pair<size_t, size_t> countActivations(std::vector<size_t> controls);
 
 private:
     size_t nQubits;
     QubitStateOrTop *quReg;
 
-    std::vector<size_t> qubitsInSameState(size_t qubit) const;
+    [[nodiscard]] std::vector<size_t> qubitsInSameState(size_t qubit) const;
 
-    size_t indexInState(size_t qubit, std::shared_ptr<QubitState> inState) const;
+    bool anyIsTop(std::vector<size_t> indices);
 };
 
 

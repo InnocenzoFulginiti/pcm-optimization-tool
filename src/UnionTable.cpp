@@ -35,7 +35,6 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     std::shared_ptr<QubitState> qubitState2 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit2]);
 
     if (qubitState1 == qubitState2) {
-        std::cerr << "Error: Qubit " << qubit1 << " and Qubit " << qubit2 << " are already combined." << std::endl;
         return;
     }
 
@@ -117,7 +116,52 @@ bool UnionTable::canActivate(std::vector<size_t> controls) const {
     return true;
 }
 
-bool UnionTable::isTop(size_t index) {
+bool UnionTable::anyIsTop(std::vector<size_t> indices) {
+    return std::any_of(indices.begin(), indices.end(),
+                       [this](size_t index) { return this->isTop(index); }
+                       );
+}
+
+std::pair<size_t, size_t> UnionTable::countActivations(std::vector<size_t> controls) {
+    size_t zeros = 0;
+    size_t ones = 0;
+
+    if(this->anyIsTop(controls)) {
+        //TODO: Error handling
+        return {-1, -1};
+    }
+
+    for (size_t i = 0; i < controls.size(); ++i) {
+        size_t target = controls[i];
+
+        auto targetState = std::get<std::shared_ptr<QubitState>>(this->quReg[target]);
+
+        std::vector<size_t> qubitsInSameState = this->qubitsInSameState(target);
+        //Add first index of target to list of indices
+        std::vector<size_t> internalIndices{this->indexInState(target)};
+
+        //Find other indices in controls that might be in the same state
+        for (size_t otherIndex: qubitsInSameState) {
+            for (size_t j = i + 1; j < controls.size(); ++j) {
+                if (controls[j] == otherIndex) {
+                    internalIndices.emplace_back(this->indexInState(otherIndex));
+                    controls.erase(controls.begin() + j);
+                    break;
+                }
+            }
+        }
+
+        //Check if group can activate
+        std::pair counts = targetState->countActivations(internalIndices);
+        zeros += counts.first;
+        ones += counts.second;
+    }
+
+    //If all groups can activate, return true
+    return {zeros, ones};
+}
+
+bool UnionTable::isTop(size_t index) const {
     return std::holds_alternative<TOP>(this->quReg[index]);
 }
 

@@ -14,6 +14,16 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
     UnionTable table(qc.getNqubits());
 
     for (auto &gate: qc) {
+        //DEBUG: Print Table
+        std::cout << table.to_string() << std::endl;
+        std::cout << "Applying Gate: " << gate->getName();
+        std::cout << " with Target: " << gate->getTargets().begin()[0];
+        std::cout << " and Controls: ";
+        for (auto c: gate->getControls()) {
+            std::cout << c.qubit << " ";
+        }
+        std::cout << std::endl;
+
         size_t target = gate->getTargets().begin()[0];
         if (table.isTop(target))
             continue;
@@ -38,17 +48,28 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
             controls.emplace_back(c.qubit);
         }
 
-        if (table.canActivate(controls)) {
+
+        std::pair counts = table.countActivations(controls);
+        size_t notActivated = counts.first;
+        size_t activated = counts.second;
+
+        if (activated == 0 && !controls.empty()) {
+            //Gate can never be activated --> Do nothing
+            continue;
+        } else if (notActivated == 0 || controls.empty()) {
+            //Gate is always applied --> Apply without controls
+
+            targetState->applyGate(table.indexInState(target), G);
+            //TODO: Add to new qc
+            //TODO: Check size of amplitudes
+        } else {
+            //Gate is sometimes applied --> Apply
             table.combine(target, controls);
+            //State may have changed
             targetState = std::get<std::shared_ptr<QubitState>>(table[target]);
             targetState->applyGate(table.indexInState(target), controls, G);
-        } else {
-            std::cout << "Found Gate That can not be activated: " << gate->getName() << "Controls: ";
-            //Print Controls
-            for (auto c: controls) {
-                std::cout << c << ", ";
-            }
-            std::cout << "Target: " << target << std::endl;
+            //Also add to qc
+            //Also check amplitudes and set Top if necessary
         }
 
     }
