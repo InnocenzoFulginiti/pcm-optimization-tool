@@ -8,7 +8,7 @@
 #include "../Definitions.hpp"
 #include "OpType.hpp"
 #include "../Permutation.hpp"
-#include "Complex.hpp"
+#include "../util/Complex.hpp"
 
 #include <array>
 #include <cstring>

@@ -81,3 +81,8 @@ namespace qc {
     using VariableAssignment = std::unordered_map<sym::Variable, fp>;
     using SymbolOrNumber     = std::variant<Symbolic, fp>;
 } // namespace qc
+
+//Define ENUM TOP
+enum TOP : char {
+    T
+};

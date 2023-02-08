@@ -26,3 +26,27 @@ SCENARIO("Test combine Method") {
 
 
 }
+
+TEST_CASE("Test UnionTable::canActivate with example") {
+    //See if controls {1, 2, 7, 4} are correctly checked in union table with
+    //{1, 3, 4} and {2, 5, 7} as entangled groups
+
+    UnionTable ut(8);
+
+    ut[0] = TOP::T;
+    ut[6] = TOP::T;
+
+    QubitState state1(3);
+    state1.clear();
+    //Is able to activate:
+    state1[5] = 1;
+
+    QubitState state2(3);
+    state2.clear();
+    state2[5] = 1;
+
+    ut[1] = ut[3] = ut[4] = std::make_shared<QubitState>(state1);
+    ut[2] = ut[5] = ut[7] = std::make_shared<QubitState>(state2);
+
+    CHECK(ut.canActivate(std::vector<size_t>{1, 2, 7, 4}));
+}

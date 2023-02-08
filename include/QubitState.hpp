@@ -16,7 +16,9 @@
 
 class QubitState {
 public:
-    explicit QubitState(int nQubits);
+    explicit QubitState(size_t nQubits);
+
+    QubitState(const QubitState &qubitState) = default;
 
     ~QubitState() = default;
 
@@ -27,6 +29,8 @@ public:
     void clear() {
         this->map.clear();
     }
+
+    QubitState clone() const;
 
     void print(std::ostream &os) const;
 
@@ -79,7 +83,15 @@ public:
 
     void normalize();
 
-    QubitState applyGate(size_t index, Complex *matrix) const;
+    //Return if qubit at index can be one
+    [[nodiscard]] bool canActivate(size_t index) const;
+
+    [[nodiscard]] bool canActivate(const std::vector<size_t> &indices) const;
+
+    void applyGate(size_t target, Complex *matrix);
+
+    void applyGate(size_t target, std::vector<size_t> controls, Complex *matrix);
+
 private:
     size_t nQubits;
     std::map<BitSet, Complex> map;
@@ -90,6 +102,5 @@ private:
 
     void removeZeroEntries();
 };
-
 
 #endif //QCPROP_QUBITSTATE_HPP

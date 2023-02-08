@@ -9,26 +9,27 @@
 #include <variant>
 #include <vector>
 #include "QubitState.hpp"
+#include "Definitions.hpp"
 
 #define MAX_AMPLITUDES 10
 
-//Define ENUM TOP
-enum TOP: char {
-    T
-};
-
-using QubitStateOrTop           = std::variant<TOP, std::shared_ptr<QubitState>>;
+using QubitStateOrTop = std::variant<TOP, std::shared_ptr<QubitState>>;
 
 class UnionTable {
 public:
     explicit UnionTable(size_t nQubits);
+
     ~UnionTable();
 
     void combine(size_t qubit1, size_t qubit2);
 
-    void print(std::ostream& os) const;
+    void combine(size_t qubit1, std::vector<size_t> otherQubits);
 
-    QubitStateOrTop& operator[](size_t index) {
+    void combine(std::vector<size_t> qubits);
+
+    void print(std::ostream &os) const;
+
+    QubitStateOrTop &operator[](size_t index) {
         return this->quReg[index];
     }
 
@@ -38,19 +39,30 @@ public:
 
     [[nodiscard]] std::string to_string() const;
 
-    void setTable(QubitStateOrTop* newTable) {
+    void setTable(QubitStateOrTop *newTable) {
         this->quReg = newTable;
     }
 
-    QubitStateOrTop* getTable() {
+    QubitStateOrTop *getTable() {
         return this->quReg;
     }
 
+    size_t indexInState(size_t qubit) const;
+
+    bool canActivate(size_t qubit) const;
+
+    bool canActivate(std::vector<size_t> controls) const;
+
+    bool isTop(size_t index);
+
 private:
     size_t nQubits;
-    QubitStateOrTop* quReg;
-};
+    QubitStateOrTop *quReg;
 
+    std::vector<size_t> qubitsInSameState(size_t qubit) const;
+
+    size_t indexInState(size_t qubit, std::shared_ptr<QubitState> inState) const;
+};
 
 
 #endif //QCPROP_UNIONTABLE_HPP
