@@ -30,19 +30,7 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
         if (table.isTop(target))
             continue;
 
-        //TODO: Actual Solution for any Gate Type
-        Complex *G;
-        switch (gate->getType()) {
-            case qc::X:
-                G = X;break;
-            case qc::H:
-                G = H;break;
-            default:
-                std::cout << "Gate \"" << qc::toString(gate->getType()) << "\" not Implemented, is skipped!" << std::endl;
-                ret.emplace_back(gate);
-                continue;
-
-        }
+        auto G = gate->getMatrix();
 
         //Get Target State
         auto targetState = std::get<std::shared_ptr<QubitState>>(table[target]);
@@ -59,14 +47,16 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
 
         if (activated == 0 && !controls.empty()) {
             //Gate can never be activated --> Do nothing
-            std::cout << "Found Gate that can never be activated: " << qc::toString(gate->getType()) << ", T: " << target << ", Ctrl: ";
+            std::cout << "Found Gate that can never be activated: " << qc::toString(gate->getType()) << ", T: "
+                      << target << ", Ctrl: ";
             for (auto c: controls) {
                 std::cout << c << " ";
             }
             std::cout << std::endl;
             continue;
         } else if (notActivated == 0 || controls.empty()) {
-            std::cout << "Found Gate that is always activated: " << qc::toString(gate->getType()) << ", T: " << target << ", Ctrl: ";
+            std::cout << "Found Gate that is always activated: " << qc::toString(gate->getType()) << ", T: " << target
+                      << ", Ctrl: ";
             for (auto c: controls) {
                 std::cout << c << " ";
             }

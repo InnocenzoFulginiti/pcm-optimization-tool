@@ -69,9 +69,9 @@ void UnionTable::print(std::ostream &os) const {
 
 std::string UnionTable::to_string() const {
     size_t commonPrefix;
-    if(nQubits > 0) {
+    if (nQubits > 0) {
         commonPrefix = (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[0]).get();
-        for (int i = 1; i < nQubits; ++i) {
+        for (size_t i = 1; i < nQubits; ++i) {
             commonPrefix &= (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get();
         }
 
@@ -130,14 +130,14 @@ bool UnionTable::canActivate(std::vector<size_t> controls) const {
 bool UnionTable::anyIsTop(std::vector<size_t> indices) {
     return std::any_of(indices.begin(), indices.end(),
                        [this](size_t index) { return this->isTop(index); }
-                       );
+    );
 }
 
 std::pair<size_t, size_t> UnionTable::countActivations(std::vector<size_t> controls) {
     size_t zeros = 0;
     size_t ones = 0;
 
-    if(this->anyIsTop(controls)) {
+    if (this->anyIsTop(controls)) {
         //TODO: Error handling
         return {-1, -1};
     }
@@ -242,7 +242,7 @@ void UnionTable::combine(size_t qubit1, std::vector<size_t> otherQubits) {
 void UnionTable::combine(std::vector<size_t> qubits) {
     size_t first = qubits[0];
 
-    for (size_t qubit : qubits) {
+    for (size_t qubit: qubits) {
         this->combine(first, qubit);
     }
 }

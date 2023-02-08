@@ -218,6 +218,89 @@ namespace qc {
         return os;
     }
 
+    const Complex X_MATR[4] = {0, 1, 1, 0};
+    const Complex H_MATR[4] = {1 / qc::SQRT_2, 1 / qc::SQRT_2, 1 / qc::SQRT_2, -1 / qc::SQRT_2};
+
+    const Complex *Operation::getMatrix() const {
+        switch (this->getType()) {
+
+            case None:
+                break;
+            case I:
+                break;
+            case H:
+                return const_cast<Complex *>(H_MATR);
+            case X:
+                return const_cast<Complex *>(X_MATR);
+            case Y:
+                break;
+            case Z:
+                break;
+            case S:
+                break;
+            case Sdag:
+                break;
+            case T:
+                break;
+            case Tdag:
+                break;
+            case V:
+                break;
+            case Vdag:
+                break;
+            case U3:
+                break;
+            case U2:
+                break;
+            case Phase:
+                break;
+            case SX:
+                break;
+            case SXdag:
+                break;
+            case RX:
+                break;
+            case RY:
+                break;
+            case RZ:
+                break;
+            case SWAP:
+                break;
+            case iSWAP:
+                break;
+            case Peres:
+                break;
+            case Peresdag:
+                break;
+            case Compound:
+                break;
+            case Measure:
+                break;
+            case Reset:
+                break;
+            case Snapshot:
+                break;
+            case ShowProbabilities:
+                break;
+            case Barrier:
+                break;
+            case Teleportation:
+                break;
+            case ClassicControlled:
+                break;
+            case ATrue:
+                break;
+            case AFalse:
+                break;
+            case MultiATrue:
+                break;
+            case MultiAFalse:
+                break;
+            case OpCount:
+                break;
+        }
+    }
+
     bool Operation::equals(const Operation& op, const Permutation& perm1, const Permutation& perm2) const {
         // check type
         if (getType() != op.getType()) {

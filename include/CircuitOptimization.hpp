@@ -11,8 +11,7 @@
 
 class CircuitOptimization {
 public:
-    virtual qc::QuantumComputation optimize(qc::QuantumComputation& qc) const = 0;
+    virtual qc::QuantumComputation optimize(qc::QuantumComputation &qc) const = 0;
 };
-
 
 #endif //QCPROP_CIRCUITOPTIMIZATION_HPP
