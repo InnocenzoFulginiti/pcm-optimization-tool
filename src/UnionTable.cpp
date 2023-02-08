@@ -68,6 +68,17 @@ void UnionTable::print(std::ostream &os) const {
 }
 
 std::string UnionTable::to_string() const {
+    size_t commonPrefix;
+    if(nQubits > 0) {
+        commonPrefix = (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[0]).get();
+        for (int i = 1; i < nQubits; ++i) {
+            commonPrefix &= (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get();
+        }
+
+        commonPrefix = ~commonPrefix;
+    }
+
+
     std::stringstream os;
     for (int i = 0; i < (int) nQubits; i++) {
         os << i << ": -> ";
@@ -75,7 +86,7 @@ std::string UnionTable::to_string() const {
             os << "Top" << std::endl;
         } else {
             std::shared_ptr<QubitState> qubitState = std::get<std::shared_ptr<QubitState>>(this->quReg[i]);
-            os << std::hex << qubitState << std::dec << ": ";
+            os << "@" << std::hex << (commonPrefix & (size_t) qubitState.get()) << std::dec << ": ";
             qubitState->print(os);
             os << std::endl;
         }

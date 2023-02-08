@@ -27,14 +27,11 @@ int main() {
 
     //Apply all CircuitOptimizations to ops
     for (auto& opt : optimizations) {
-        opt->optimize(qc);
+        qc = opt->optimize(qc);
     }
 
 
-    for(auto& gate : qc) {
-        std::cout << gate->getName() << std::endl;
-        gate->print(std::cout);
-    }
+    qc.print(std::cout);
 
     return 0;
 }

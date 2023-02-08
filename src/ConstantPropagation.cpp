@@ -13,6 +13,8 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
 
     UnionTable table(qc.getNqubits());
 
+    qc::QuantumComputation ret(qc.getNqubits());
+
     for (auto &gate: qc) {
         //DEBUG: Print Table
         std::cout << table.to_string() << std::endl;
@@ -36,7 +38,9 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
             case qc::H:
                 G = H;break;
             default:
-                std::cerr << "Not Implemented!";
+                std::cout << "Gate \"" << qc::toString(gate->getType()) << "\" not Implemented, is skipped!" << std::endl;
+                ret.emplace_back(gate);
+                continue;
 
         }
 
@@ -55,24 +59,41 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
 
         if (activated == 0 && !controls.empty()) {
             //Gate can never be activated --> Do nothing
+            std::cout << "Found Gate that can never be activated: " << qc::toString(gate->getType()) << ", T: " << target << ", Ctrl: ";
+            for (auto c: controls) {
+                std::cout << c << " ";
+            }
+            std::cout << std::endl;
             continue;
         } else if (notActivated == 0 || controls.empty()) {
-            //Gate is always applied --> Apply without controls
+            std::cout << "Found Gate that is always activated: " << qc::toString(gate->getType()) << ", T: " << target << ", Ctrl: ";
+            for (auto c: controls) {
+                std::cout << c << " ";
+            }
+            std::cout << std::endl;
 
             targetState->applyGate(table.indexInState(target), G);
-            //TODO: Add to new qc
+            gate->setControls(qc::Controls{});
+            ret.emplace_back(gate);
             //TODO: Check size of amplitudes
         } else {
             //Gate is sometimes applied --> Apply
             table.combine(target, controls);
             //State may have changed
             targetState = std::get<std::shared_ptr<QubitState>>(table[target]);
-            targetState->applyGate(table.indexInState(target), controls, G);
-            //Also add to qc
-            //Also check amplitudes and set Top if necessary
+
+            //Find indices in state
+            size_t targetIndex = table.indexInState(target);
+            std::vector<size_t> controlIndices{};
+            for (auto c: controls) {
+                controlIndices.emplace_back(table.indexInState(c));
+            }
+
+            targetState->applyGate(targetIndex, controlIndices, G);
+            ret.emplace_back(gate);
         }
 
     }
 
-    return {};
+    return ret;
 }
