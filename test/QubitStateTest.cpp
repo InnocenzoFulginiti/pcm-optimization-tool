@@ -90,10 +90,6 @@ TEST_CASE("QubitState Merge Example") {
     REQUIRE((*result)[BitSet(3, 7)] == expected7);
 }
 
-TEST_CASE("Apply example gates") {
-
-}
-
 TEST_CASE("Test Gate Identities") {
     Complex X[4] = {
             Complex(0, 0), Complex(1, 0),

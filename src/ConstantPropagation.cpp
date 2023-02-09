@@ -7,10 +7,6 @@
 #include "../include/Definitions.hpp"
 
 qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) const {
-    Complex X[4] = {0, 1, 1, 0};
-    Complex H[4] = {qc::SQRT_2_2, qc::SQRT_2_2, qc::SQRT_2_2, -qc::SQRT_2_2};
-
-
     UnionTable table(qc.getNqubits());
 
     qc::QuantumComputation ret(qc.getNqubits());
@@ -30,7 +26,9 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
         if (table.isTop(target))
             continue;
 
-        auto G = gate->getMatrix();
+        auto M = gate->getMatrix();
+        Complex G[4] = {M[0], M[1], M[2], M[3]};
+
 
         //Get Target State
         auto targetState = std::get<std::shared_ptr<QubitState>>(table[target]);

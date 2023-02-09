@@ -185,6 +185,9 @@ namespace qc {
 
         virtual void dumpOpenQASM(std::ostream& of, const RegisterNames& qreg, const RegisterNames& creg) const = 0;
 
-        const Complex *getMatrix() const;
+        [[nodiscard]] std::array<Complex, 4> getMatrix() const;
+
+    private:
+        static std::array<Complex, 4> U3_MATR(double, double, double) ;
     };
 } // namespace qc

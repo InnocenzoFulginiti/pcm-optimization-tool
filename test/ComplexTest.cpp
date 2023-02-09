@@ -6,7 +6,7 @@
 
 #include "Complex.hpp"
 
-SCENARIO("Create a Complex Number") {
+TEST_CASE("Create a Complex Number") {
     Complex a = 1;
     REQUIRE(a.real() == 1.0);
     REQUIRE(a.imag() == 0.0);
@@ -25,7 +25,7 @@ SCENARIO("Create a Complex Number") {
     REQUIRE(d.imag() == 6.0);
 }
 
-SCENARIO("Complex Operators") {
+TEST_CASE("Complex Operators") {
     //Test Complex Operators
     Complex a(1, 2);
     Complex b(3, 4);
@@ -67,7 +67,7 @@ SCENARIO("Complex Operators") {
     REQUIRE(c.imag() == 0.08);
 }
 
-SCENARIO("Getters and Setters") {
+TEST_CASE("Getters and Setters") {
     Complex a(1, 2);
     REQUIRE(a.real() == 1.0);
     REQUIRE(a.imag() == 2.0);
@@ -78,7 +78,7 @@ SCENARIO("Getters and Setters") {
     REQUIRE(a.imag() == 4.0);
 }
 
-SCENARIO("Compare Complex Numbers") {
+TEST_CASE("Compare Complex Numbers") {
     Complex a(1, 2);
     Complex b(1, 2);
     Complex c(3, 4);

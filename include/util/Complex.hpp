@@ -22,11 +22,11 @@ public:
         this->value.imag(im);
     }
 
-    double real() {
+    double real() const {
         return this->value.real();
     }
 
-    double imag() {
+    double imag() const {
         return this->value.imag();
     }
 
@@ -89,9 +89,14 @@ public:
         return std::abs(value) < 1e-10;
     }
 
+    [[nodiscard]] Complex exp() const {
+        return Complex(std::exp(this->value));
+    }
+
+
     //to_string
     [[nodiscard]] std::string to_string() const {
-        return std::to_string(value.real()) + "+" + std::to_string(value.imag()) + "i";
+        return std::to_string(value.real()) + ((value.imag() < 0)? "-" : "+") + std::to_string(value.imag()) + "i";
     }
 private:
     std::complex<double> value;

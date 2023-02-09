@@ -102,11 +102,12 @@ namespace qc {
                 name = "clc_";
                 break;
             default:
-                throw QFRException("This constructor shall not be called for gate type (index) " + std::to_string(static_cast<int>(type)));
+                throw QFRException("This constructor shall not be called for gate type (index) " +
+                                   std::to_string(static_cast<int>(type)));
         }
     }
 
-    std::ostream& Operation::printParameters(std::ostream& os) const {
+    std::ostream &Operation::printParameters(std::ostream &os) const {
         if (isClassicControlledOperation()) {
             os << "\tc[" << parameter[0];
             if (parameter[1] != 1) {
@@ -117,7 +118,7 @@ namespace qc {
         }
 
         bool isZero = true;
-        for (const auto& p: parameter) {
+        for (const auto &p: parameter) {
             if (p != static_cast<fp>(0)) {
                 isZero = false;
                 break;
@@ -143,13 +144,13 @@ namespace qc {
         return os;
     }
 
-    std::ostream& Operation::print(std::ostream& os) const {
+    std::ostream &Operation::print(std::ostream &os) const {
         const auto precBefore = std::cout.precision(20);
 
         os << std::setw(4) << name << "\t";
 
         auto controlIt = controls.begin();
-        auto targetIt  = targets.begin();
+        auto targetIt = targets.begin();
         for (std::size_t i = 0; i < nqubits; ++i) {
             if (targetIt != targets.end() && *targetIt == i) {
                 if (type == ClassicControlled) {
@@ -180,15 +181,15 @@ namespace qc {
         return os;
     }
 
-    std::ostream& Operation::print(std::ostream& os, const Permutation& permutation) const {
+    std::ostream &Operation::print(std::ostream &os, const Permutation &permutation) const {
         const auto precBefore = std::cout.precision(20);
 
         os << std::setw(4) << name << "\t";
-        const auto& actualControls = getControls();
-        const auto& actualTargets  = getTargets();
-        auto        controlIt      = actualControls.cbegin();
-        auto        targetIt       = actualTargets.cbegin();
-        for (const auto& [physical, logical]: permutation) {
+        const auto &actualControls = getControls();
+        const auto &actualTargets = getTargets();
+        auto controlIt = actualControls.cbegin();
+        auto targetIt = actualTargets.cbegin();
+        for (const auto &[physical, logical]: permutation) {
             if (targetIt != actualTargets.cend() && *targetIt == physical) {
                 if (type == ClassicControlled) {
                     os << "\033[1m\033[35m" << name[2] << name[3];
@@ -218,90 +219,78 @@ namespace qc {
         return os;
     }
 
-    const Complex X_MATR[4] = {0, 1, 1, 0};
-    const Complex H_MATR[4] = {1 / qc::SQRT_2, 1 / qc::SQRT_2, 1 / qc::SQRT_2, -1 / qc::SQRT_2};
-
-    const Complex *Operation::getMatrix() const {
+    std::array<Complex, 4> Operation::getMatrix() const {
         switch (this->getType()) {
-
             case None:
                 break;
             case I:
-                break;
+                return {1, 0, 0, 1};
             case H:
-                return const_cast<Complex *>(H_MATR);
+                return {1 / SQRT_2, 1 / SQRT_2, 1 / SQRT_2, -1 / SQRT_2};
             case X:
-                return const_cast<Complex *>(X_MATR);
+                return {0, 1, 1, 0};
             case Y:
-                break;
+                return {0, Complex(0, -1), Complex(0, 1), 0};
             case Z:
-                break;
+                return {1, 0, 0, -1};
             case S:
-                break;
+                return {1, 0, 0, Complex(0, 1)};
             case Sdag:
-                break;
+                return {1, 0, 0, Complex(0, -1)};
             case T:
-                break;
+                return {1, 0, 0, Complex(0, PI / 4).exp()};
             case Tdag:
-                break;
+                return {1, 0, 0, Complex(0, -PI / 4).exp()};
             case V:
-                break;
+                return {Complex(0.5, 0.5), Complex(0.5, -0.5), Complex(0.5, -0.5), Complex(0.5, 0.5)};
             case Vdag:
-                break;
+                return {Complex(0.5, -0.5), Complex(0.5, 0.5), Complex(0.5, 0.5), Complex(0.5, -0.5)};
             case U3:
-                break;
+                return U3_MATR(this->parameter[0], this->parameter[1], this->parameter[2]);
             case U2:
-                break;
+                return U3_MATR(PI / 2, this->parameter[0], this->parameter[1]);
             case Phase:
-                break;
+                return U3_MATR(0, 0, this->parameter[0]);
             case SX:
-                break;
+                return {Complex(0.5, 0.5), Complex(0.5, -0.5),
+                        Complex(0.5, -0.5), Complex(0.5, 0.5)};
             case SXdag:
-                break;
+                return {Complex(0.5, -0.5), Complex(0.5, 0.5),
+                        Complex(0.5, 0.5), Complex(0.5, -0.5)};
             case RX:
-                break;
+                return {std::cos(this->parameter[0] / 2), Complex(0, 1) * -std::sin(this->parameter[0] / 2),
+                        Complex(0, 1) * -std::sin(this->parameter[0] / 2), std::cos(this->parameter[0] / 2)};
             case RY:
-                break;
+                return U3_MATR(this->parameter[0], 0, 0);
             case RZ:
-                break;
+                return U3_MATR(0, 0, this->parameter[0]);
+                //TODO: Make something for other gates
             case SWAP:
-                break;
             case iSWAP:
-                break;
             case Peres:
-                break;
             case Peresdag:
-                break;
             case Compound:
-                break;
             case Measure:
-                break;
             case Reset:
-                break;
             case Snapshot:
-                break;
             case ShowProbabilities:
-                break;
             case Barrier:
-                break;
             case Teleportation:
-                break;
             case ClassicControlled:
-                break;
             case ATrue:
-                break;
             case AFalse:
-                break;
             case MultiATrue:
-                break;
             case MultiAFalse:
-                break;
             case OpCount:
+            default:
+                std::cout << "Operation::getMatrix() not implemented for " << this->name << std::endl;
                 break;
         }
+
+        return {};
     }
 
-    bool Operation::equals(const Operation& op, const Permutation& perm1, const Permutation& perm2) const {
+    bool Operation::equals(const Operation &op, const Permutation &perm1, const Permutation &perm2) const {
         // check type
         if (getType() != op.getType()) {
             return false;
@@ -327,7 +316,7 @@ namespace qc {
             if (perm1.empty()) {
                 controls1 = getControls();
             } else {
-                for (const auto& control: getControls()) {
+                for (const auto &control: getControls()) {
                     controls1.emplace(Control{perm1.at(control.qubit), control.type});
                 }
             }
@@ -336,7 +325,7 @@ namespace qc {
             if (perm2.empty()) {
                 controls2 = op.getControls();
             } else {
-                for (const auto& control: op.getControls()) {
+                for (const auto &control: op.getControls()) {
                     controls2.emplace(Control{perm2.at(control.qubit), control.type});
                 }
             }
@@ -351,7 +340,7 @@ namespace qc {
         if (perm1.empty()) {
             targets1 = {getTargets().begin(), getTargets().end()};
         } else {
-            for (const auto& target: getTargets()) {
+            for (const auto &target: getTargets()) {
                 targets1.emplace(perm1.at(target));
             }
         }
@@ -360,7 +349,7 @@ namespace qc {
         if (perm2.empty()) {
             targets2 = {op.getTargets().begin(), op.getTargets().end()};
         } else {
-            for (const auto& target: op.getTargets()) {
+            for (const auto &target: op.getTargets()) {
                 targets2.emplace(perm2.at(target));
             }
         }
@@ -368,21 +357,30 @@ namespace qc {
         return targets1 == targets2;
     }
 
-    void Operation::addDepthContribution(std::vector<std::size_t>& depths) const {
+    void Operation::addDepthContribution(std::vector<std::size_t> &depths) const {
         std::size_t maxDepth = 0;
-        for (const auto& target: getTargets()) {
+        for (const auto &target: getTargets()) {
             maxDepth = std::max(maxDepth, depths[target]);
         }
-        for (const auto& control: getControls()) {
+        for (const auto &control: getControls()) {
             maxDepth = std::max(maxDepth, depths[control.qubit]);
         }
         maxDepth += 1;
-        for (const auto& target: getTargets()) {
+        for (const auto &target: getTargets()) {
             depths[target] = maxDepth;
         }
-        for (const auto& control: getControls()) {
+        for (const auto &control: getControls()) {
             depths[control.qubit] = maxDepth;
         }
+    }
+
+    std::array<Complex, 4> Operation::U3_MATR(double theta, double phi, double lambda) {
+        return {
+                Complex(cos(theta / 2), 0) * Complex(0, (phi + lambda) / 2).exp(),
+                Complex(0, 0) - Complex(sin(theta / 2), 0) * Complex(0, (phi - lambda) / 2).exp(),
+                Complex(sin(theta / 2), 0) * Complex(0, (phi - lambda) / 2).exp(),
+                Complex(cos(theta / 2), 0) * Complex(0, (phi + lambda) / 2).exp()
+        };
     }
 
 } // namespace qc

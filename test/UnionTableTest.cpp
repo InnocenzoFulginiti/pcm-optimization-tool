@@ -7,12 +7,12 @@
 #include "UnionTable.hpp"
 #include "Definitions.hpp"
 
-SCENARIO("Make a Union Table") {
+TEST_CASE("Make a Union Table") {
     UnionTable ut(3);
     REQUIRE(ut.size() == 3);
 }
 
-SCENARIO("Test combine Method") {
+TEST_CASE("Test combine Method") {
     UnionTable table(3);
 
     table.combine(0, 1);
