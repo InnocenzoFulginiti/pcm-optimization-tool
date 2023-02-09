@@ -99,22 +99,22 @@ namespace qc {
         reset();
 
         switch (format) {
-//            case Format::Real:
-//                importReal(is);
-//                break;
+            case Format::Real:
+                importReal(is);
+                break;
             case Format::OpenQASM:
                 updateMaxControls(2);
                 importOpenQASM(is);
                 break;
-//            case Format::GRCS:
-//                importGRCS(is);
-//                break;
-//            case Format::TFC:
-//                importTFC(is);
-//                break;
-//            case Format::QC:
-//                importQC(is);
-//                break;
+            case Format::GRCS:
+                importGRCS(is);
+                break;
+            case Format::TFC:
+                importTFC(is);
+                break;
+            case Format::QC:
+                importQC(is);
+                break;
             default:
                 throw QFRException("[import] format not recognized");
         }
