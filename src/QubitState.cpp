@@ -110,7 +110,7 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
     return newQubitState;
 }
 
-void QubitState::applyGate(const size_t target, const Complex *matrix) {
+void QubitState::applyGate(const size_t target, const std::array<Complex, 4> matrix) {
     std::map newMap = std::map<BitSet, Complex>();
 
     for (auto const &[key, val]: this->map) {
@@ -225,7 +225,8 @@ QubitState QubitState::clone() const {
     return clone;
 }
 
-void QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, const Complex *matrix) {
+void
+QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, const std::array<Complex, 4> matrix) {
     if (controls.empty()) {
         this->applyGate(target, matrix);
         return;

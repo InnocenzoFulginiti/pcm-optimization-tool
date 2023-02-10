@@ -91,37 +91,24 @@ TEST_CASE("QubitState Merge Example") {
 }
 
 TEST_CASE("Test Gate Identities") {
-    Complex X[4] = {
-            Complex(0, 0), Complex(1, 0),
-            Complex(1, 0), Complex(0, 0)
-    };
+    std::array<Complex, 4> X = {0, 1, 1, 0};
+    std::array<Complex, 4> I = {1, 0, 0, 1};
 
-    Complex I[4] = {
-            Complex(1, 0), Complex(0, 0),
-            Complex(0, 0), Complex(1, 0)
-    };
+    std::array<Complex, 4> Y = {0, Complex(0, -1), Complex(0, 1), 0};
 
-    Complex Y[4] = {
-            Complex(0, 0), Complex(0, -1),
-            Complex(0, 1), Complex(0, 0)
-    };
+    std::array<Complex, 4> Z = {1, 0, 0, -1};
 
-    Complex Z[4] = {
-            Complex(1, 0), Complex(0, 0),
-            Complex(0, 0), Complex(-1, 0)
-    };
-
-    Complex H[4] = {
+    std::array<Complex, 4> H = {
             Complex(1 / qc::SQRT_2, 0), Complex(1 / qc::SQRT_2, 0),
             Complex(1 / qc::SQRT_2, 0), Complex(-1 / qc::SQRT_2, 0)
     };
 
-    Complex S[4] = {
+    std::array<Complex, 4> S = {
             Complex(1, 0), Complex(0, 0),
             Complex(0, 0), Complex(0, 1)
     };
 
-    Complex T[4] = {
+    std::array<Complex, 4> T = {
             Complex(1, 0), Complex(0, 0),
             Complex(0, 0), Complex(1 / qc::SQRT_2, 1 / qc::SQRT_2)
     };

@@ -26,8 +26,7 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
         if (table.isTop(target))
             continue;
 
-        auto M = gate->getMatrix();
-        Complex G[4] = {M[0], M[1], M[2], M[3]};
+        auto G = gate->getMatrix();
 
 
         //Get Target State

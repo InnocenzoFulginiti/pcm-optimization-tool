@@ -91,9 +91,12 @@ public:
 
     std::pair<size_t, size_t> countActivations(std::vector<size_t> controls);
 
-    void applyGate(size_t target, const Complex *matrix);
+    void applyGate(size_t target,
+                   std::array<Complex, 4> matrix);
 
-    void applyGate(size_t target, const std::vector<size_t>& controls, const Complex *matrix);
+    void applyGate(size_t target,
+                   const std::vector<size_t> &controls,
+                   std::array<Complex, 4> matrix);
 
 private:
     size_t nQubits;
