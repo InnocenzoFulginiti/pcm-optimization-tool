@@ -11,8 +11,6 @@
 #include "QubitState.hpp"
 #include "Definitions.hpp"
 
-#define MAX_AMPLITUDES 10
-
 using QubitStateOrTop = std::variant<TOP, std::shared_ptr<QubitState>>;
 
 class UnionTable {
@@ -56,6 +54,8 @@ public:
     [[nodiscard]] bool isTop(size_t index) const;
 
     std::pair<size_t, size_t> countActivations(std::vector<size_t> controls);
+
+    void setTop(size_t qubit);
 
 private:
     size_t nQubits;

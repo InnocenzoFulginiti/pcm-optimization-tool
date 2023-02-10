@@ -18,6 +18,19 @@ UnionTable::~UnionTable() {
     delete[] this->quReg;
 }
 
+void UnionTable::setTop(size_t qubit) {
+    if(std::holds_alternative<TOP>(this->quReg[qubit])) {
+        return;
+    }
+
+    auto qubitState = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit]);
+    for (size_t i = 0; i < nQubits; ++i) {
+        if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState) {
+            this->quReg[i] = TOP::T;
+        }
+    }
+}
+
 //Combine UnionTable entries of two qubits. If either is Top, the result is Top.
 //If both are QubitStates, the result is the tensor product of the two.
 void UnionTable::combine(size_t qubit1, size_t qubit2) {
@@ -70,8 +83,13 @@ void UnionTable::print(std::ostream &os) const {
 std::string UnionTable::to_string() const {
     size_t commonPrefix;
     if (nQubits > 0) {
-        commonPrefix = (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[0]).get();
-        for (size_t i = 1; i < nQubits; ++i) {
+        size_t i = 0;
+        for (; i < nQubits; i++) {
+            if(std::holds_alternative<std::shared_ptr<QubitState>>(this->quReg[i])) {
+                commonPrefix = (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get();
+            }
+        }
+        for (; i < nQubits; i++) {
             commonPrefix &= (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get();
         }
 
