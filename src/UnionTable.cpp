@@ -24,8 +24,9 @@ void UnionTable::setTop(size_t qubit) {
     }
 
     auto qubitState = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit]);
-    for (size_t i = 0; i < nQubits; ++i) {
-        if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState) {
+    for (size_t i = 0; i < nQubits; i++) {
+        if (!std::holds_alternative<TOP>(this->quReg[i]) &&
+                std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState) {
             this->quReg[i] = TOP::T;
         }
     }
@@ -34,6 +35,9 @@ void UnionTable::setTop(size_t qubit) {
 //Combine UnionTable entries of two qubits. If either is Top, the result is Top.
 //If both are QubitStates, the result is the tensor product of the two.
 void UnionTable::combine(size_t qubit1, size_t qubit2) {
+    if(qubit1 == qubit2)
+        return;
+
     if (std::holds_alternative<TOP>(this->quReg[qubit1])) {
         this->quReg[qubit2] = TOP::T;
         return;
@@ -55,7 +59,10 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     std::vector<int> qubitState1Indices{};
     std::vector<int> qubitState2Indices{};
 
-    for (int i = 0; i < (int) (this->nQubits); ++i) {
+    for (size_t i = 0; i < this->nQubits; i++) {
+        if(std::holds_alternative<TOP>(this->quReg[i]))
+            continue;
+
         if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState1) {
             qubitState1Indices.emplace_back(i);
         }
@@ -68,8 +75,10 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
                                                                     qubitState2, qubitState2Indices);
 
     //Replace old qubitStates with new one
-    for (int i = 0; i < (int) nQubits; i++) {
-        if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState1
+    for (size_t i = 0; i < nQubits; i++) {
+        if(std::holds_alternative<TOP>(this->quReg[i])) {
+            continue;
+        } else if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState1
             || std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState2) {
             this->quReg[i] = newQubitState;
         }
