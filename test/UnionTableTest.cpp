@@ -19,12 +19,6 @@ TEST_CASE("Test combine Method") {
 
     REQUIRE(table[0] == table[1]);
     REQUIRE(table[1] != table[2]);
-
-    auto state0 = std::get<std::shared_ptr<QubitState>>(table[0]);
-    auto state1 = std::get<std::shared_ptr<QubitState>>(table[1]);
-    auto state2 = std::get<std::shared_ptr<QubitState>>(table[2]);
-
-
 }
 
 TEST_CASE("Test UnionTable::canActivate with example") {

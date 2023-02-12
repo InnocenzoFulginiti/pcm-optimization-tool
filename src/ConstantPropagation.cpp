@@ -38,7 +38,7 @@ std::pair<std::vector<ActivationState>, std::shared_ptr<UnionTable>> ConstantPro
         auto G = gate->getMatrix();
 
         //Get Target State
-        auto targetState = std::get<std::shared_ptr<QubitState>>((*table)[target]);
+        auto targetState = ((*table)[target]).getQubitState();
         std::vector<size_t> controls{};
         auto ctr = gate->getControls();
         bool controlsAreTop = false;
@@ -89,7 +89,7 @@ std::pair<std::vector<ActivationState>, std::shared_ptr<UnionTable>> ConstantPro
             //Gate is sometimes applied --> Apply
             table->combine(target, controls);
             //State may have changed
-            targetState = std::get<std::shared_ptr<QubitState>>((*table)[target]);
+            targetState = ((*table)[target]).getQubitState();
 
             if (targetState->size() > maxAmplitudes) {
                 table->setTop(target);

@@ -19,14 +19,14 @@ UnionTable::~UnionTable() {
 }
 
 void UnionTable::setTop(size_t qubit) {
-    if(std::holds_alternative<TOP>(this->quReg[qubit])) {
+    if(this->quReg[qubit].isTop()) {
         return;
     }
 
-    auto qubitState = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit]);
+    auto qubitState = this->quReg[qubit].getQubitState();
     for (size_t i = 0; i < nQubits; i++) {
-        if (!std::holds_alternative<TOP>(this->quReg[i]) &&
-                std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState) {
+        if (!this->quReg[i].isTop() &&
+                this->quReg[i].getQubitState() == qubitState) {
             this->quReg[i] = TOP::T;
         }
     }
@@ -38,18 +38,18 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     if(qubit1 == qubit2)
         return;
 
-    if (std::holds_alternative<TOP>(this->quReg[qubit1])) {
+    if (this->quReg[qubit1].isTop()) {
         this->quReg[qubit2] = TOP::T;
         return;
     }
 
-    if (std::holds_alternative<TOP>(this->quReg[qubit2])) {
+    if (this->quReg[qubit2].isTop()) {
         this->quReg[qubit1] = TOP::T;
         return;
     }
 
-    std::shared_ptr<QubitState> qubitState1 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit1]);
-    std::shared_ptr<QubitState> qubitState2 = std::get<std::shared_ptr<QubitState>>(this->quReg[qubit2]);
+    std::shared_ptr<QubitState> qubitState1 = this->quReg[qubit1].getQubitState();
+    std::shared_ptr<QubitState> qubitState2 = this->quReg[qubit2].getQubitState();
 
     if (qubitState1 == qubitState2) {
         return;
@@ -60,13 +60,13 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     std::vector<int> qubitState2Indices{};
 
     for (size_t i = 0; i < this->nQubits; i++) {
-        if(std::holds_alternative<TOP>(this->quReg[i]))
+        if(this->quReg[i].isTop())
             continue;
 
-        if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState1) {
+        if (this->quReg[i].getQubitState() == qubitState1) {
             qubitState1Indices.emplace_back(i);
         }
-        if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState2) {
+        if (this->quReg[i].getQubitState() == qubitState2) {
             qubitState2Indices.emplace_back(i);
         }
     }
@@ -76,10 +76,10 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
 
     //Replace old qubitStates with new one
     for (size_t i = 0; i < nQubits; i++) {
-        if(std::holds_alternative<TOP>(this->quReg[i])) {
+        if(this->quReg[i].isTop()) {
             continue;
-        } else if (std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState1
-            || std::get<std::shared_ptr<QubitState>>(this->quReg[i]) == qubitState2) {
+        } else if (this->quReg[i].getQubitState() == qubitState1
+            || this->quReg[i].getQubitState() == qubitState2) {
             this->quReg[i] = newQubitState;
         }
     }
@@ -94,12 +94,12 @@ std::string UnionTable::to_string() const {
     if (nQubits > 0) {
         size_t i = 0;
         for (; i < nQubits; i++) {
-            if(std::holds_alternative<std::shared_ptr<QubitState>>(this->quReg[i])) {
-                commonPrefix = (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get();
+            if(this->quReg[i].isQubitState()) {
+                commonPrefix = (size_t) this->quReg[i].getQubitState().get();
             }
         }
         for (; i < nQubits; i++) {
-            commonPrefix &= (size_t) std::get<std::shared_ptr<QubitState>>(this->quReg[i]).get();
+            commonPrefix &= (size_t) this->quReg[i].getQubitState().get();
         }
 
         commonPrefix = ~commonPrefix;
@@ -109,10 +109,10 @@ std::string UnionTable::to_string() const {
     std::stringstream os;
     for (int i = 0; i < (int) nQubits; i++) {
         os << i << ": -> ";
-        if (std::holds_alternative<TOP>(this->quReg[i])) {
+        if (this->quReg[i].isTop()) {
             os << "Top" << std::endl;
         } else {
-            std::shared_ptr<QubitState> qubitState = std::get<std::shared_ptr<QubitState>>(this->quReg[i]);
+            std::shared_ptr<QubitState> qubitState = this->quReg[i].getQubitState();
             os << "@" << std::hex << (commonPrefix & (size_t) qubitState.get()) << std::dec << ": ";
             qubitState->print(os);
             os << std::endl;
@@ -124,10 +124,10 @@ std::string UnionTable::to_string() const {
 bool UnionTable::canActivate(std::vector<size_t> controls) const {
     for (size_t i = 0; i < controls.size(); ++i) {
         size_t target = controls[i];
-        if (std::holds_alternative<TOP>(this->quReg[target]))
+        if (this->quReg[target].isTop())
             return false;
 
-        auto targetState = std::get<std::shared_ptr<QubitState>>(this->quReg[target]);
+        auto targetState = this->quReg[target].getQubitState();
 
 
         std::vector<size_t> qubitsInSameState = this->qubitsInSameState(target);
@@ -172,7 +172,7 @@ std::pair<size_t, size_t> UnionTable::countActivations(std::vector<size_t> contr
     for (size_t i = 0; i < controls.size(); ++i) {
         size_t target = controls[i];
 
-        auto targetState = std::get<std::shared_ptr<QubitState>>(this->quReg[target]);
+        auto targetState = this->quReg[target].getQubitState();
 
         std::vector<size_t> qubitsInSameState = this->qubitsInSameState(target);
         //Add first index of target to list of indices
@@ -200,22 +200,21 @@ std::pair<size_t, size_t> UnionTable::countActivations(std::vector<size_t> contr
 }
 
 bool UnionTable::isTop(size_t index) const {
-    return std::holds_alternative<TOP>(this->quReg[index]);
+    return this->quReg[index].isTop();
 }
 
 std::vector<size_t> UnionTable::qubitsInSameState(size_t qubit) const {
-    QubitStateOrTop isTop = this->quReg[qubit];
-    if (std::holds_alternative<TOP>(isTop))
+    if (this->quReg[qubit].isTop())
         return {};
 
-    std::shared_ptr<QubitState> qubitState = std::get<std::shared_ptr<QubitState>>(isTop);
+    std::shared_ptr<QubitState> qubitState = this->quReg[qubit].getQubitState();
 
     std::vector<size_t> qubitsInSameState{};
     for (int i = 0; i < (int) nQubits; ++i) {
-        if (std::holds_alternative<TOP>(this->quReg[i]))
+        if (this->quReg[i].isTop())
             continue;
 
-        std::shared_ptr<QubitState> otherQubitState = std::get<std::shared_ptr<QubitState>>(this->quReg[i]);
+        std::shared_ptr<QubitState> otherQubitState = this->quReg[i].getQubitState();
         if (qubitState == otherQubitState)
             qubitsInSameState.emplace_back(i);
     }
@@ -225,12 +224,12 @@ std::vector<size_t> UnionTable::qubitsInSameState(size_t qubit) const {
 
 bool UnionTable::canActivate(size_t qubit) const {
     QubitStateOrTop target = this->quReg[qubit];
-    if (std::holds_alternative<TOP>(target)) {
+    if (target.isTop()) {
         //TODO: Error
         return false;
     }
 
-    std::shared_ptr<QubitState> targetState = std::get<std::shared_ptr<QubitState>>(target);
+    std::shared_ptr<QubitState> targetState = target.getQubitState();
     size_t inStateIndex = this->indexInState(qubit);
 
     return targetState->canActivate(inStateIndex);
@@ -239,19 +238,19 @@ bool UnionTable::canActivate(size_t qubit) const {
 size_t UnionTable::indexInState(size_t qubit) const {
     QubitStateOrTop target = this->quReg[qubit];
 
-    if (std::holds_alternative<TOP>(target)) {
+    if (target.isTop()) {
         return -1;
     }
 
-    std::shared_ptr<QubitState> targetState = std::get<std::shared_ptr<QubitState>>(target);
+    std::shared_ptr<QubitState> targetState = target.getQubitState();
 
     size_t inStateIndex = 0;
     for (size_t i = 0; i < qubit; ++i) {
         auto entry = this->quReg[i];
-        if (std::holds_alternative<TOP>(entry)) {
+        if (entry.isTop()) {
             continue;
         } else {
-            std::shared_ptr<QubitState> qubitState = std::get<std::shared_ptr<QubitState>>(entry);
+            std::shared_ptr<QubitState> qubitState = entry.getQubitState();
             if (qubitState == targetState) {
                 inStateIndex++;
             }
