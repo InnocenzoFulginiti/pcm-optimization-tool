@@ -56,15 +56,15 @@ TEST_CASE("QubitState Merge Example") {
             TOP::T
     };
 
-    std::get<std::shared_ptr<QubitState>>(testQReg[0])->operator[](BitSet(2, 0)) = Complex(0.70710678118, 0);
-    std::get<std::shared_ptr<QubitState>>(testQReg[0])->operator[](BitSet(2, 3)) = Complex(0.70710678118, 0);
-    std::get<std::shared_ptr<QubitState>>(testQReg[1])->operator[](BitSet(1, 0)) = Complex(0.5, 0);
-    std::get<std::shared_ptr<QubitState>>(testQReg[1])->operator[](BitSet(1, 1)) = Complex(0.86602540378, 0);
+    (*testQReg[0].getQubitState())[2] = Complex(0.70710678118, 0);
+    (*testQReg[0].getQubitState())[BitSet(2, 3)] = Complex(0.70710678118, 0);
+    (*testQReg[1].getQubitState())[BitSet(1, 0)] = Complex(0.5, 0);
+    (*testQReg[1].getQubitState())[BitSet(1, 1)] = Complex(0.86602540378, 0);
 
-    testQReg[2] = std::get<std::shared_ptr<QubitState>>(testQReg[0]);
+    testQReg[2] = testQReg[0].getQubitState();
 
-    std::shared_ptr<QubitState> q0_2 = std::get<std::shared_ptr<QubitState>>(testQReg[0]);
-    std::shared_ptr<QubitState> q1 = std::get<std::shared_ptr<QubitState>>(testQReg[1]);
+    std::shared_ptr<QubitState> q0_2 = testQReg[0].getQubitState();
+    std::shared_ptr<QubitState> q1 = testQReg[1].getQubitState();
 
 
     std::shared_ptr<QubitState> result = QubitState::combine(q0_2, std::vector{0, 2}, q1, std::vector{1});

@@ -11,8 +11,6 @@
 #include "QubitState.hpp"
 #include "Definitions.hpp"
 
-using QubitStateOrTop = std::variant<TOP, std::shared_ptr<QubitState>>;
-
 class UnionTable {
 public:
     explicit UnionTable(size_t nQubits);

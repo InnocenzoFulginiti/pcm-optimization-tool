@@ -105,4 +105,68 @@ private:
     void removeZeroEntries();
 };
 
+enum TOP {
+    T
+};
+
+class QubitStateOrTop {
+private:
+    std::variant<TOP, std::shared_ptr<QubitState>> variant;
+public:
+    QubitStateOrTop() : variant(TOP::T) {}
+
+    QubitStateOrTop(TOP top) : variant(top) {}
+
+    QubitStateOrTop(std::shared_ptr<QubitState> qubitState) : variant(qubitState) {}
+
+    QubitStateOrTop(const QubitStateOrTop &qubitStateOrTop) = default;
+
+    QubitStateOrTop &operator=(const QubitStateOrTop &qubitStateOrTop) = default;
+
+    QubitStateOrTop &operator=(const std::shared_ptr<QubitState> &qubitState) {
+        this->variant = qubitState;
+        return *this;
+    }
+
+    QubitStateOrTop &operator=(const TOP &t) {
+        this->variant = t;
+        return *this;
+    }
+
+    bool operator==(const QubitStateOrTop &rhs) const {
+        return this->variant == rhs.variant;
+    }
+
+    bool operator!=(const QubitStateOrTop &rhs) const {
+        return !(rhs == *this);
+    }
+
+    ~QubitStateOrTop() = default;
+
+    [[nodiscard]] bool isTop() const {
+        return std::holds_alternative<TOP>(variant);
+    }
+
+    [[nodiscard]] bool isQubitState() const {
+        return std::holds_alternative<std::shared_ptr<QubitState>>(variant);
+    }
+
+    [[nodiscard]] std::shared_ptr<QubitState> getQubitState() const {
+        return std::get<std::shared_ptr<QubitState>>(variant);
+    }
+
+    [[nodiscard]] std::string to_string() const {
+        if (isTop()) {
+            return "TOP";
+        } else {
+            return getQubitState()->to_string();
+        }
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const QubitStateOrTop &qubitStateOrTop) {
+        os << qubitStateOrTop.to_string();
+        return os;
+    }
+};
+
 #endif //QCPROP_QUBITSTATE_HPP
