@@ -35,7 +35,7 @@ public:
     void print(std::ostream &os) const;
 
     //Iterator over map entries
-    typedef std::map<BitSet, Complex>::iterator iterator;
+    typedef std::unordered_map<BitSet, Complex>::iterator iterator;
 
     /**
      * Combine Quantum States by applying the tensor product
@@ -118,7 +118,7 @@ public:
 
 private:
     size_t nQubits;
-    std::map<BitSet, Complex> map;
+    std::unordered_map<BitSet, Complex> map;
     bool wasMeasured;
 
     void removeZeroEntries();

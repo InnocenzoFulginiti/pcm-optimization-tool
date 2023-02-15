@@ -8,7 +8,7 @@
 
 QubitState::QubitState(size_t nQubits) {
     this->nQubits = nQubits;
-    this->map = std::map<BitSet, Complex>();
+    this->map = std::unordered_map<BitSet, Complex>();
     this->wasMeasured = false;
 
     map[BitSet(1, 0)] = Complex(1, 0);
@@ -112,7 +112,7 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
 }
 
 void QubitState::applyGate(const size_t target, const std::array<Complex, 4> matrix) {
-    std::map newMap = std::map<BitSet, Complex>();
+    std::unordered_map newMap = std::unordered_map<BitSet, Complex>();
 
     for (auto const &[key, val]: this->map) {
         if (val.isZero())
