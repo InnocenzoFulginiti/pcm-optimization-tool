@@ -6,118 +6,277 @@
 
 #define SHOW_DEBUG_MSG false
 
-std::pair<std::vector<ActivationState>, std::shared_ptr<UnionTable>> ConstantPropagation::propagate(
-        const qc::QuantumComputation &qc, size_t maxAmplitudes) {
+ActivationState ConstantPropagation::applyCompoundGate(const std::shared_ptr<UnionTable> &table,
+                                                       const std::vector<std::unique_ptr<qc::Operation>> &ops,
+                                                       const size_t maxAmplitudes,
+                                                       std::map<size_t, double> &measurementResults) {
+    std::vector<ActivationState> states{};
 
-    std::shared_ptr<UnionTable> table = std::make_shared<UnionTable>(qc.getNqubits());
-    std::vector<ActivationState> activationStates{};
+    for (auto &gate: ops) {
+        states.emplace_back(applyGate(table, gate, maxAmplitudes, measurementResults));
+    }
 
-    for (auto &gate: qc) {
-        if (gate->getType() == qc::Compound) {
-            activationStates.emplace_back(UNKNOWN);
-            continue;
+    //TODO: How to optimize compound gates?
+    return UNKNOWN;
+}
+
+ActivationState ConstantPropagation::applyCompoundGate(const std::shared_ptr<UnionTable> &table,
+                                                       const std::vector<std::unique_ptr<qc::Operation>> &ops,
+                                                       const std::vector<size_t> &controls,
+                                                       const size_t maxAmplitudes,
+                                                       std::map<size_t, double> &measurementResults) {
+    auto counts = table->countActivations(controls);
+    size_t notActivated = counts.first;
+    size_t activated = counts.second;
+
+    if (activated == 0 && !controls.empty()) {
+        return NEVER;
+    } else if (notActivated == 0 || controls.empty()) {
+        return applyCompoundGate(table, ops, maxAmplitudes, measurementResults);
+    } else {
+        //Apply gate with additional control
+        std::vector<ActivationState> states{};
+
+        for(auto& op: ops) {
+            //Insert extra controls into gate
+            std::unique_ptr<qc::Operation> copy = op->clone();
+            for(auto c: controls) {
+                copy->getControls().insert({(qc::Qubit) c});
+            }
+
+            states.emplace_back(applyGate(table, copy, maxAmplitudes, measurementResults));
+        }
+    }
+
+    return UNKNOWN;
+}
+
+ActivationState
+ConstantPropagation::applyGate(const std::shared_ptr<UnionTable> &table,
+                               const std::unique_ptr<qc::Operation> &op,
+                               const size_t maxAmplitudes,
+                               std::map<size_t, double> &measurementResults) {
+
+    /**
+     * Barrier: https://qiskit.org/documentation/stubs/qiskit.circuit.library.Barrier.html
+     *          Just indicator, not relevant for qcprop
+     */
+    if (op->getType() == qc::Barrier) {
+        return UNKNOWN;
+    }
+
+    if (op->isClassicControlledOperation()) {
+        auto cco = dynamic_cast<qc::ClassicControlledOperation *>(op.get());
+
+        //Don't do anything if target is TOP anyways
+        if ((*table)[cco->getOperation()->getTargets()[0]].isTop())
+            return UNKNOWN;
+
+        auto classics = cco->getControlRegister();
+        size_t classicsStart = classics.first;
+        size_t classicsLength = classics.second;
+        size_t expected = cco->getExpectedValue();
+
+        size_t target = cco->getOperation()->getTargets()[0];
+
+        double prob = 1.0;
+        for (size_t i = 0; i < classicsLength; i++) {
+            if (measurementResults[classicsStart + i] < 0) {
+                table->setTop(target);
+                return UNKNOWN;
+            }
+
+            if (expected & (1 << i)) {
+                prob *= measurementResults[classicsStart + i];
+            } else {
+                prob *= 1 - measurementResults[classicsStart + i];
+            }
         }
 
-        if (SHOW_DEBUG_MSG) {
-            std::cout << table->to_string() << std::endl;
-            std::cout << "Applying Gate: " << gate->getName();
-            std::cout << " with Target: " << gate->getTargets().begin()[0];
-            std::cout << " and Controls: ";
+        //Use complex so same "Approximate" zero method is used
+        if (Complex(prob).isZero()) {
+            return NEVER;
+        }
 
-            for (auto c: gate->getControls()) {
-                std::cout << c.qubit << " ";
+        if (Complex(prob) == 1) {
+            applyGate(table, cco->getOperation()->clone(), maxAmplitudes, measurementResults);
+            return ALWAYS;
+        }
+
+        //Weighed average of activated/not activated
+        std::shared_ptr<QubitState> targetState = (*table)[target].getQubitState();
+        QubitState activated = targetState->clone();
+        activated.applyGate(table->indexInState(target), cco->getOperation()->getMatrix());
+
+        activated *= prob;
+        (*targetState) *= (1 - prob);
+
+        (*targetState) += activated;
+
+        return SOMETIMES;
+    }
+
+    if (op->getType() == qc::SWAP) {
+        //Handle SWAP as compound Gate
+        qc::Qubit i = op->getTargets()[0];
+        qc::Qubit j = op->getTargets()[1];
+
+        qc::QuantumComputation swap(op->getNqubits());
+        swap.x(i, {j});
+        swap.x(j, {i});
+        swap.x(i, {j});
+
+        std::vector<size_t> controls{};
+        for(auto c : op->getControls()) {
+            controls.emplace_back(c.qubit);
+        }
+
+        return applyCompoundGate(table, swap.getOps(), controls, maxAmplitudes,measurementResults);
+    }
+
+    //Reset qubit to |0>
+    if (op->getType() == qc::Reset) {
+        for (const size_t t: op->getTargets()) {
+            (*table)[t] = std::make_shared<QubitState>(1);
+        }
+        //TODO: Optimize this? What about entangled qubits?
+        return ALWAYS;
+    }
+
+    if (op->isCompoundOperation()) {
+        auto compound = dynamic_cast<qc::CompoundOperation *>(op.get());
+
+        return applyCompoundGate(table, compound->getOps(), maxAmplitudes, measurementResults);
+    }
+
+    if (op->getType() == qc::Measure) {
+        auto nonUni = dynamic_cast<qc::NonUnitaryOperation *>(op.get());
+
+        measure(table,
+                nonUni->getTargets(),
+                nonUni->getClassics(),
+                measurementResults);
+
+        return ALWAYS;
+    }
+
+    //Not a "special" Gate
+
+    if (SHOW_DEBUG_MSG) {
+        std::cout << table->to_string() << std::endl;
+        std::cout << "Applying Gate: " << op->getName();
+        std::cout << " with Target: " << op->getTargets().begin()[0];
+        std::cout << " and Controls: ";
+
+        for (auto c: op->getControls()) {
+            std::cout << c.qubit << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    size_t target = op->getTargets().begin()[0];
+    if (table->isTop(target)) {
+        return UNKNOWN;
+    }
+
+    auto G = op->getMatrix();
+
+    //Get Target State
+    auto targetState = ((*table)[target]).getQubitState();
+    std::vector<size_t> controls{};
+    auto ctr = op->getControls();
+    bool controlsAreTop = false;
+    for (auto c: ctr) {
+        controls.emplace_back(c.qubit);
+        if (table->isTop(c.qubit)) {
+            controlsAreTop = true;
+        }
+    }
+    if (controlsAreTop) {
+        return UNKNOWN;
+    }
+
+
+    std::pair counts = table->countActivations(controls);
+    size_t notActivated = counts.first;
+    size_t activated = counts.second;
+
+    if (activated == 0 && !controls.empty()) {
+        //Gate can never be activated --> Do nothing
+        if (SHOW_DEBUG_MSG) {
+            std::cout << "Found Gate that can never be activated: " << qc::toString(op->getType()) << ", T: "
+                      << target << ", Ctrl: ";
+            for (auto c: controls) {
+                std::cout << c << " ";
             }
             std::cout << std::endl;
         }
-        size_t target = gate->getTargets().begin()[0];
-        if (table->isTop(target)) {
-            activationStates.emplace_back(UNKNOWN);
-            continue;
-        }
-
-        auto G = gate->getMatrix();
-
-        //Get Target State
-        auto targetState = ((*table)[target]).getQubitState();
-        std::vector<size_t> controls{};
-        auto ctr = gate->getControls();
-        bool controlsAreTop = false;
-        for (auto c: ctr) {
-            controls.emplace_back(c.qubit);
-            if (table->isTop(c.qubit)) {
-                controlsAreTop = true;
-            }
-        }
-        if(controlsAreTop) {
-            activationStates.emplace_back(UNKNOWN);
-            continue;
-        }
-
-
-        std::pair counts = table->countActivations(controls);
-        size_t notActivated = counts.first;
-        size_t activated = counts.second;
-
-        if (activated == 0 && !controls.empty()) {
-            //Gate can never be activated --> Do nothing
-            if (SHOW_DEBUG_MSG) {
-                std::cout << "Found Gate that can never be activated: " << qc::toString(gate->getType()) << ", T: "
-                          << target << ", Ctrl: ";
-                for (auto c: controls) {
-                    std::cout << c << " ";
-                }
-                std::cout << std::endl;
-            }
-            activationStates.emplace_back(NEVER);
-            continue;
-        } else if (notActivated == 0 || controls.empty()) {
-            if (SHOW_DEBUG_MSG) {
-                std::cout << "Found Gate that is always activated: " << qc::toString(gate->getType()) << ", T: "
-                          << target
-                          << ", Ctrl: ";
-                for (auto c: controls) {
-                    std::cout << c << " ";
-                }
-                std::cout << std::endl;
-            }
-            targetState->applyGate(table->indexInState(target), G);
-            if (targetState->size() > maxAmplitudes) {
-                table->setTop(target);
-            }
-            activationStates.emplace_back(ALWAYS);
-        } else {
-            //Gate is sometimes applied --> Apply
-            table->combine(target, controls);
-            //State may have changed
-            targetState = ((*table)[target]).getQubitState();
-
-            if (targetState->size() > maxAmplitudes) {
-                table->setTop(target);
-                continue;
-            }
-
-            //Find indices in state
-            size_t targetIndex = table->indexInState(target);
-            std::vector<size_t> controlIndices{};
+        return NEVER;
+    } else if (notActivated == 0 || controls.empty()) {
+        if (SHOW_DEBUG_MSG) {
+            std::cout << "Found Gate that is always activated: " << qc::toString(op->getType()) << ", T: "
+                      << target
+                      << ", Ctrl: ";
             for (auto c: controls) {
-                controlIndices.emplace_back(table->indexInState(c));
+                std::cout << c << " ";
             }
+            std::cout << std::endl;
+        }
+        targetState->applyGate(table->indexInState(target), G);
+        if (targetState->size() > maxAmplitudes) {
+            table->setTop(target);
+        }
+        return ALWAYS;
+    } else {
+        //Gate is sometimes applied --> Apply
+        table->combine(target, controls);
+        //State may have changed
+        targetState = ((*table)[target]).getQubitState();
 
-            targetState->applyGate(targetIndex, controlIndices, G);
-            activationStates.emplace_back(SOMETIMES);
-            if (targetState->size() > maxAmplitudes) {
-                table->setTop(target);
-                continue;
-            }
+        if (targetState->size() > maxAmplitudes) {
+            table->setTop(target);
+            return UNKNOWN;
         }
 
+        //Find indices in state
+        size_t targetIndex = table->indexInState(target);
+        std::vector<size_t> controlIndices{};
+        for (auto c: controls) {
+            controlIndices.emplace_back(table->indexInState(c));
+        }
+
+        targetState->applyGate(targetIndex, controlIndices, G);
+
+        if (targetState->size() > maxAmplitudes) {
+            table->setTop(target);
+        }
+
+        return SOMETIMES;
+    }
+}
+
+
+std::pair<std::vector<ActivationState>, std::shared_ptr<UnionTable>> ConstantPropagation::propagate(
+        const qc::QuantumComputation &qc, size_t maxAmplitudes) {
+
+
+    std::shared_ptr<UnionTable> table = std::make_shared<UnionTable>(qc.getNqubits());
+    std::vector<ActivationState> activationStates{};
+    std::map<size_t, double> measurementResults{};
+
+    for (auto &gate: qc) {
+        activationStates.emplace_back(applyGate(table, gate, maxAmplitudes, measurementResults));
     }
 
     return {activationStates, table};
 }
 
 qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) const {
-    auto ret = propagate(qc, 3);
+    return optimize(qc, MAX_AMPLITUDES);
+}
+
+qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc, int maxAmplitudes) const {
+    auto ret = propagate(qc, maxAmplitudes);
 
     std::vector<ActivationState> ops = ret.first;
 
@@ -141,4 +300,29 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
 
 
     return optimized;
+}
+
+void ConstantPropagation::measure(const std::shared_ptr<UnionTable> &table, std::vector<qc::Qubit> qubits,
+                                  std::vector<size_t> classics, std::map<size_t, double> &results) {
+    for (size_t i = 0; i < qubits.size(); ++i) {
+        size_t target = qubits[i];
+
+        if (table->isTop(target)) {
+            results[classics[i]] = -1;
+            continue;
+        }
+
+        (*table)[target].getQubitState()->setMeasured();
+
+        auto targetState = ((*table)[target]).getQubitState();
+        size_t indexInState = table->indexInState(target);
+        double prob = 0.0;
+        for (auto &[key, val]: *targetState) {
+            if ((key & (1 << indexInState)) > 0) {
+                prob += val.norm();
+            }
+        }
+
+        results[classics[i]] = prob;
+    }
 }

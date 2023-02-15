@@ -2,11 +2,7 @@
 // Created by zuchna on 2/9/23.
 //
 
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/generators/catch_generators_adapters.hpp>
-#include <catch2/generators/catch_generators_random.hpp>
-
-#include "QuantumComputation.hpp"
+#include "TestUtils.hpp"
 
 TEST_CASE("Test rx Gate Matrix") {
     auto test = qc::StandardOperation();

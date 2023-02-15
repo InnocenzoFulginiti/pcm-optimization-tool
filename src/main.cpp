@@ -16,6 +16,7 @@ int main() {
     std::string FILENAME_OUT = "../test/circuits/circ1_OUT.qasm";
 
     qc::QuantumComputation qc(FILENAME_IN);
+    qc.unifyQuantumRegisters("q");
 
     //Print the circuit
     qc.print(std::cout);

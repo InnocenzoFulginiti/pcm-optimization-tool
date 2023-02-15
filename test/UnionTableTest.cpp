@@ -2,10 +2,7 @@
 // Created by Jakob on 02/02/2023.
 //
 
-#include <catch2/catch_test_macros.hpp>
-
-#include "UnionTable.hpp"
-#include "Definitions.hpp"
+#include "TestUtils.hpp"
 
 TEST_CASE("Make a Union Table") {
     UnionTable ut(3);

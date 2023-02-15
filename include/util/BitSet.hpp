@@ -37,10 +37,9 @@ public:
     //Define operator <
     bool operator<(const BitSet& other) const
     {
-        for (int i = size-1; i >= 0; i--) {
-            if ((*this)[i] ^ other[i]) return other[i];
-        }
-        return false;
+        auto str1 = this->bits.to_string();
+        auto strOther = other.bits.to_string();
+        return str1 < strOther;
     }
 
     bool operator>(const BitSet& other) const
