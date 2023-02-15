@@ -1,107 +1,82 @@
-#include "catch2/catch_test_macros.hpp"
-#include "catch2/generators/catch_generators_adapters.hpp"
-#include "catch2/generators/catch_generators_random.hpp"
+#include "TestUtils.hpp"
 
-#include <filesystem>
-#include <string>
-#include <iostream>
+TEST_CASE("Constant Propagation on small Files, multiple maxAmplitudes") {
+    auto p = GENERATE(take(20, qasmFile(QASMFileGenerator::SIZE::SMALL)));
+    auto maxAmplitude = GENERATE(1, 10, 40);
 
-#include "QuantumComputation.hpp"
-#include "ConstantPropagation.hpp"
+    INFO("File: " + p.string() + "Max Amplitude: " + std::to_string(maxAmplitude));
 
-#define QASM_Bench_Path "../test/circuits/QASMBench"
-
-namespace fs = std::filesystem;
-
-std::vector<fs::path> QASMFiles(std::string subfolder) {
-    auto smallFolder = std::filesystem::path((std::string(QASM_Bench_Path) + "/" + subfolder));
-    std::vector<fs::path> foundQASMFiles{};
-    for (auto &f: fs::directory_iterator(smallFolder)) {
-        if (f.is_directory()) {
-            for (auto &q: fs::directory_iterator(f)) {
-                if (q.is_regular_file()) {
-                    if (q.path().extension() == ".qasm")
-                        foundQASMFiles.emplace_back(q);
-                }
-            }
-        }
-    }
-
-    return foundQASMFiles;
-}
-
-class QASMFileGenerator : public Catch::Generators::IGenerator<fs::path> {
-    std::vector<fs::path> unused;
-
-public:
-    enum SIZE{
-        SMALL,
-        MEDIUM,
-        LARGE,
-        ALL
-    };
-    const fs::path &get() const override {
-        return unused.back();
-    }
-
-    explicit QASMFileGenerator(SIZE s) {
-        switch (s) {
-            case SMALL:
-                unused = QASMFiles("small");
-                break;
-            case MEDIUM:
-                unused = QASMFiles("medium");
-                break;
-            case LARGE:
-                unused = QASMFiles("large");
-            case ALL:
-                std::vector<fs::path> small = QASMFiles("small");
-                std::vector<fs::path> medium = QASMFiles("medium");
-                std::vector<fs::path> large = QASMFiles("large");
-
-                unused.reserve(small.size() + medium.size() + large.size());
-                unused.insert(unused.end(), small.begin(), small.end());
-                unused.insert(unused.end(), medium.begin(), medium.end());
-                unused.insert(unused.end(), large.begin(), large.end());
-
-        }
-    }
-
-private:
-    bool next() override {
-        if (unused.empty())
-            return false;
-        unused.pop_back();
-        return !unused.empty();
-    }
-
-    std::string stringifyImpl() const override {
-        return unused.back().string();
-    }
-};
-
-Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::SIZE s) {
-    return {
-            new QASMFileGenerator(s)
-            // Another possibility:
-            // Catch::Detail::make_unique<RandomIntGenerator>(low, high)
-    };
-}
-
-TEST_CASE("Run Constant Propagation on small QASM Files with small MAX_AMPLITUDES") {
-    auto p = GENERATE(take(100, qasmFile(QASMFileGenerator::SIZE::ALL)));
-
-    INFO("File: " + p.string());
     qc::QuantumComputation qc(p);
+    INFO("Number of Gates: " + std::to_string(qc.getNops()));
+    CHECK_NOTHROW(ConstantPropagation::propagate(qc, maxAmplitude));
+}
+
+TEST_CASE("Try SWAP") {
+    qc::QuantumComputation qc(3);
+    qc.h(0);
+    qc.swap(0, 1);
+
+    INFO("Circuit: h[0]; swap[0,1]");
+    auto res = ConstantPropagation::propagate(qc, 3);
+    auto table = res.second;
+
+    INFO("Table: " + table->to_string());
+    REQUIRE((*table)[0].isQubitState());
+    REQUIRE((*table)[1].isQubitState());
+
+    auto q0 = (*table)[0].getQubitState();
+    auto q1 = (*table)[1].getQubitState();
+
+    CHECK((*q0)[1] == 0);
+    CHECK((*q0)[3] == 0);
+    CHECK((*q1)[0] == qc::SQRT_2_2);
+    CHECK((*q1)[2] == qc::SQRT_2_2);
+}
+
+TEST_CASE("Try File with Compound Gates") {
+    auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
+    qc::QuantumComputation qc(fileWithCompoundGates);
 
     CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
 }
 
-TEST_CASE("Try specific file") {
-    //Special Files:
-    auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
+TEST_CASE("Try File with Reset") {
+    auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
+    qc::QuantumComputation qc(fileWithReset);
 
-    auto file = "../test/circuits/QASMBench/small/adder_n10/adder_n10_transpiled.qasm";
+    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
+}
+
+TEST_CASE("Try file with Classic Controlled gates") {
+    auto classicControls = "../test/circuits/QASMBench/small/shor_n5/shor_n5.qasm";
+    qc::QuantumComputation qc(classicControls);
+    std::pair<std::vector<ActivationState>, std::shared_ptr<UnionTable>> res;
+
+    std::stringstream ss;
+    qc.print(ss);
+    INFO("Circuit: " + ss.str());
+
+    CHECK_NOTHROW(res = ConstantPropagation::propagate(qc, 10));
+
+    auto table = res.second;
+    INFO("Table: " + table->to_string());
+    REQUIRE((*table)[0].isQubitState());
+    REQUIRE((*table)[1].isQubitState());
+    REQUIRE((*table)[2].isQubitState());
+    REQUIRE((*table)[3].isQubitState());
+    REQUIRE((*table)[4].isQubitState());
+
+    std::shared_ptr<QubitState> state = (*table)[0].getQubitState();
+
+    //TODO: Check state amplitudes
+}
+
+TEST_CASE("Try specific file") {
+    //TODO: Handle Compound Gates
+    auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
+    auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
+    auto classicControls = "../test/circuits/QASMBench/small/qec_sm_n5/qec_sm_n5.qasm";
+    auto file = classicControls;
 
     qc::QuantumComputation qc(file);
 

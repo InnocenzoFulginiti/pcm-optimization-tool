@@ -2,15 +2,7 @@
 // Created by zuchna on 2/4/23.
 //
 
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/generators/catch_generators_adapters.hpp>
-#include <catch2/generators/catch_generators_random.hpp>
-#include <catch2/catch_approx.hpp>
-
-#include "UnionTable.hpp"
-#include "Definitions.hpp"
-
-#define CHECK_MESSAGE(cond, msg) do { INFO(msg); CHECK(cond); } while((void)0, 0)
+#include "TestUtils.hpp"
 
 TEST_CASE("QubitState normalization example") {
     Complex c1(1, 0);
@@ -50,13 +42,14 @@ TEST_CASE("QubitState Merge Example") {
      * 1: |0> = 0.5, |1> = sqrt(3)/2
      */
 
-    auto *testQReg = new QubitStateOrTop[3]{
+    QubitStateOrTop testQReg[3]{
             std::make_shared<QubitState>(2),
             std::make_shared<QubitState>(1),
             TOP::T
     };
 
-    (*testQReg[0].getQubitState())[2] = Complex(0.70710678118, 0);
+    (testQReg[0]).getQubitState()->clear();
+    (*testQReg[0].getQubitState())[BitSet(2, 0)] = Complex(0.70710678118, 0);
     (*testQReg[0].getQubitState())[BitSet(2, 3)] = Complex(0.70710678118, 0);
     (*testQReg[1].getQubitState())[BitSet(1, 0)] = Complex(0.5, 0);
     (*testQReg[1].getQubitState())[BitSet(1, 1)] = Complex(0.86602540378, 0);

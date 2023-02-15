@@ -59,9 +59,17 @@ public:
         return this->map.end();
     }
 
-    //Define operator []
     Complex &operator[](const BitSet &key) {
         return this->map.operator[](key);
+    }
+
+    Complex operator[](const BitSet &key) const {
+        auto it = this->map.find(key);
+        if (it != this->map.end()) {
+            return it->second;
+        } else {
+            return 0;
+        }
     }
 
     //Define operator <<
@@ -72,6 +80,10 @@ public:
 
     //Define operator ==
     bool operator==(const QubitState &rhs) const;
+
+    QubitState &operator*=(const Complex &rhs);
+
+    QubitState &operator+=(const QubitState &rhs);
 
     //to_string
     [[nodiscard]] std::string to_string() const;
@@ -98,9 +110,16 @@ public:
                    const std::vector<size_t> &controls,
                    std::array<Complex, 4> matrix);
 
+    //Write getter/setter for wasMeasured
+    [[nodiscard]] bool isWasMeasured() const{return this->wasMeasured;}
+
+    void setMeasured(){this->wasMeasured = true;}
+
+
 private:
     size_t nQubits;
     std::map<BitSet, Complex> map;
+    bool wasMeasured;
 
     void removeZeroEntries();
 };

@@ -9,6 +9,7 @@
 QubitState::QubitState(size_t nQubits) {
     this->nQubits = nQubits;
     this->map = std::map<BitSet, Complex>();
+    this->wasMeasured = false;
 
     map[BitSet(1, 0)] = Complex(1, 0);
 }
@@ -259,4 +260,20 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
     for (auto const [key, value]: deactivated.map) {
         this->map[key] = value;
     }
+}
+
+QubitState &QubitState::operator*=(const Complex &rhs) {
+    for (auto &entry: this->map) {
+        entry.second *= rhs;
+    }
+
+    return *this;
+}
+
+QubitState &QubitState::operator+=(const QubitState &rhs) {
+    for(auto &[key, value] : this->map) {
+        value += rhs[key];
+    }
+
+    return *this;
 }
