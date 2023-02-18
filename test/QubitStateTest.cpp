@@ -167,3 +167,31 @@ TEST_CASE("Test Gate Identities") {
                       ", qs: " + qs.to_string() + ", result: " + result.to_string());
     }
 }
+
+TEST_CASE("Test Reorder Indices") {
+    const int nQubits = 5;
+
+    QubitState sut(nQubits);
+    sut.clear();
+
+    int key = GENERATE(take(10, random(0, (1 << nQubits) - 1)));
+    INFO("Key: " + std::to_string(key));
+
+    sut[key] = Complex(1, 0);
+
+    size_t oldI = GENERATE(take(5, random(0, nQubits - 1)));
+    size_t newI = GENERATE(take(5, random(0, nQubits - 1)));
+
+
+    INFO("oldI: " + std::to_string(oldI));
+    INFO("newI: " + std::to_string(newI));
+
+    sut.reorderIndex(oldI, newI);
+
+    INFO("State after first reorder: " + sut.to_string());
+
+    sut.reorderIndex(newI, oldI);
+
+    INFO("State after second reorder: " + sut.to_string());
+    CHECK(sut[key] == Complex(1, 0));
+}

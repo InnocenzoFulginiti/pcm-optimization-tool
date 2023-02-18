@@ -43,6 +43,8 @@ public:
         return this->quReg;
     }
 
+    void swap(size_t q1, size_t q2);
+
     [[nodiscard]] size_t indexInState(size_t qubit) const;
 
     [[nodiscard]] bool canActivate(size_t qubit) const;

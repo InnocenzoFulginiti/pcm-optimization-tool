@@ -115,6 +115,9 @@ public:
 
     void setMeasured(){this->wasMeasured = true;}
 
+    void reorderIndex(size_t oldI, size_t newI);
+
+    void swapIndex(size_t q1, size_t q2);
 
 private:
     size_t nQubits;

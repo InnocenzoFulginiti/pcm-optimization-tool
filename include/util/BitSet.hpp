@@ -29,17 +29,18 @@ public:
 
     ~BitSet() = default;
 
-    //Set Size
     void setSize(size_t newSize) {
         this->size = newSize;
     }
 
-    //Define operator []
+    size_t getSize() const {
+        return size;
+    }
+
     bool operator[](const int index) const {
         return bits[index];
     }
 
-    //Define operator <
     bool operator<(const BitSet &other) const {
         auto str1 = this->bits.to_string();
         auto strOther = other.bits.to_string();
@@ -50,7 +51,6 @@ public:
         return other < *this;
     }
 
-    //Define operator ==
     bool operator==(const BitSet &other) const {
         for (int i = size - 1; i >= 0; i--) {
             if ((*this)[i] ^ other[i]) return false;
@@ -58,56 +58,53 @@ public:
         return true;
     }
 
-    //Define operator !=
     bool operator!=(const BitSet &other) const {
         return !(*this == other);
     }
 
-/**
- * Bitwise AND
- * @param other
- * @return
- */
     BitSet operator&(const BitSet &other) const {
         return {this->size, this->bits & other.bits};
     }
 
-//Define operator |
     BitSet operator|(const BitSet &other) const {
         size_t newSize = this->size > other.size ? this->size : other.size;
         return {newSize, this->bits | other.bits};
     }
 
-//Define operator ^
     BitSet operator^(const BitSet &other) const {
         size_t newSize = this->size > other.size ? this->size : other.size;
         return {newSize, this->bits ^ other.bits};
     }
 
-//Define operator &=
     BitSet &operator&=(const BitSet &other) {
         this->bits &= other.bits;
         return *this;
     }
 
-//Define operator |=
     BitSet &operator|=(const BitSet &other) {
         this->size = this->size > other.size ? this->size : other.size;
         this->bits |= other.bits;
         return *this;
     }
 
-//Define operator >> that is right shift
     BitSet operator>>(const int shift) const {
         return {this->size, this->bits >> shift};
     }
 
-//Define operator << that is left shift
     BitSet operator<<(const int shift) const {
         return {this->size, this->bits << shift};
     }
 
-//Define operator <<
+    BitSet &operator<<=(const int shift) {
+        this->bits <<= shift;
+        return *this;
+    }
+
+    BitSet &operator>>=(const int shift) {
+        this->bits >>= shift;
+        return *this;
+    }
+
     friend std::ostream &operator<<(std::ostream &os, const BitSet &bitSet);
 
 //Write method to display value in debugger
@@ -115,7 +112,7 @@ public:
         os << *this;
     }
 
-    std::bitset<MAX_QUBITS> getBits() const {
+    [[nodiscard]] std::bitset<MAX_QUBITS> getBits() const {
         return bits;
     }
 

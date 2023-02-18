@@ -27,10 +27,11 @@ TEST_CASE("Try SWAP") {
     auto q0 = (*table)[0].getQubitState();
     auto q1 = (*table)[1].getQubitState();
 
+    REQUIRE_FALSE(q0.get() == q1.get());
+    CHECK((*q0)[0] == 0);
     CHECK((*q0)[1] == 0);
-    CHECK((*q0)[3] == 0);
     CHECK((*q1)[0] == qc::SQRT_2_2);
-    CHECK((*q1)[2] == qc::SQRT_2_2);
+    CHECK((*q1)[1] == qc::SQRT_2_2);
 }
 
 TEST_CASE("Try File with Reset") {
