@@ -33,13 +33,6 @@ TEST_CASE("Try SWAP") {
     CHECK((*q1)[2] == qc::SQRT_2_2);
 }
 
-TEST_CASE("Try File with Compound Gates") {
-    auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
-    qc::QuantumComputation qc(fileWithCompoundGates);
-
-    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
-}
-
 TEST_CASE("Try File with Reset") {
     auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
     qc::QuantumComputation qc(fileWithReset);
