@@ -60,13 +60,13 @@ ConstantPropagation::applyGate(const std::shared_ptr<UnionTable> &table,
 
         //Weighed average of activated/not activated
         std::shared_ptr<QubitState> targetState = (*table)[target].getQubitState();
-        QubitState activated = targetState->clone();
-        activated.applyGate(table->indexInState(target), cco->getOperation()->getMatrix());
+        QubitState stateAfterGate = targetState->clone();
+        stateAfterGate.applyGate(table->indexInState(target), cco->getOperation()->getMatrix());
 
-        activated *= prob;
+        stateAfterGate *= prob;
         (*targetState) *= (1 - prob);
 
-        (*targetState) += activated;
+        (*targetState) += stateAfterGate;
 
         return SOMETIMES;
     }
@@ -76,21 +76,17 @@ ConstantPropagation::applyGate(const std::shared_ptr<UnionTable> &table,
         qc::Qubit i = op->getTargets()[0];
         qc::Qubit j = op->getTargets()[1];
 
-        std::unique_ptr<qc::Operation> cx = std::make_unique<qc::StandardOperation>();
-        cx->setGate(qc::X);
-        cx->setControls(op->getControls());
-
-        auto cx1 = cx->clone();
-        cx1->getControls().insert({j});
-        cx1->setTargets({i});
-
-        auto cx2 = cx->clone();
-        cx2->getControls().insert({i});
-        cx2->setTargets({j});
-
-        applyGate(table, cx1, maxAmplitudes, measurementResults);
-        applyGate(table, cx2, maxAmplitudes, measurementResults);
-        applyGate(table, cx1, maxAmplitudes, measurementResults);
+        if (!op->getControls().empty()) {
+            //Decompose cswap a, b, c as
+            //  cx c,b;
+            //  ccx a,b,c;
+            //  cx c,b;
+            //TODO: cswap
+            std::cout << "Constant Propagation does not support cswap, is skipped!" << std::endl;
+            return UNKNOWN;
+        } else {
+            table->swap(i, j);
+        }
     }
 
     //Reset qubit to |0>

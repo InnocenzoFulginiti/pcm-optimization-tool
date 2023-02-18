@@ -19,14 +19,14 @@ UnionTable::~UnionTable() {
 }
 
 void UnionTable::setTop(size_t qubit) {
-    if(this->quReg[qubit].isTop()) {
+    if (this->quReg[qubit].isTop()) {
         return;
     }
 
     auto qubitState = this->quReg[qubit].getQubitState();
     for (size_t i = 0; i < nQubits; i++) {
         if (!this->quReg[i].isTop() &&
-                this->quReg[i].getQubitState() == qubitState) {
+            this->quReg[i].getQubitState() == qubitState) {
             this->quReg[i] = TOP::T;
         }
     }
@@ -35,7 +35,7 @@ void UnionTable::setTop(size_t qubit) {
 //Combine UnionTable entries of two qubits. If either is Top, the result is Top.
 //If both are QubitStates, the result is the tensor product of the two.
 void UnionTable::combine(size_t qubit1, size_t qubit2) {
-    if(qubit1 == qubit2)
+    if (qubit1 == qubit2)
         return;
 
     if (this->quReg[qubit1].isTop()) {
@@ -60,7 +60,7 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     std::vector<int> qubitState2Indices{};
 
     for (size_t i = 0; i < this->nQubits; i++) {
-        if(this->quReg[i].isTop())
+        if (this->quReg[i].isTop())
             continue;
 
         if (this->quReg[i].getQubitState() == qubitState1) {
@@ -76,10 +76,10 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
 
     //Replace old qubitStates with new one
     for (size_t i = 0; i < nQubits; i++) {
-        if(this->quReg[i].isTop()) {
+        if (this->quReg[i].isTop()) {
             continue;
         } else if (this->quReg[i].getQubitState() == qubitState1
-            || this->quReg[i].getQubitState() == qubitState2) {
+                   || this->quReg[i].getQubitState() == qubitState2) {
             this->quReg[i] = newQubitState;
         }
     }
@@ -94,7 +94,7 @@ std::string UnionTable::to_string() const {
     if (nQubits > 0) {
         size_t i = 0;
         for (; i < nQubits; i++) {
-            if(this->quReg[i].isQubitState()) {
+            if (this->quReg[i].isQubitState()) {
                 commonPrefix = (size_t) this->quReg[i].getQubitState().get();
             }
         }
@@ -270,5 +270,51 @@ void UnionTable::combine(std::vector<size_t> qubits) {
 
     for (size_t qubit: qubits) {
         this->combine(first, qubit);
+    }
+}
+
+void UnionTable::swap(size_t q1, size_t q2) {
+    auto s1 = this->quReg[q1];
+    auto s2 = this->quReg[q2];
+
+    if (s1.isTop() && s2.isTop()) {
+        return;
+    }
+
+    int oldS1Index = -1;
+    int oldS2Index = -1;
+
+
+    if (s1.isTop() && s2.isQubitState()) {
+        oldS2Index = this->indexInState(q2);
+        this->quReg[q1] = s2;
+        this->quReg[q2] = TOP::T;
+    } else if (s1.isQubitState() && s2.isTop()) {
+        oldS1Index = this->indexInState(q1);
+        this->quReg[q2] = s1;
+        this->quReg[q1] = TOP::T;
+    } else {
+        auto qs1 = s1.getQubitState();
+        auto qs2 = s2.getQubitState();
+        if (qs1.get() == qs2.get()) {
+            //SWAP in entangled group
+            qs1->swapIndex(this->indexInState(q1),
+                           this->indexInState(q2));
+            return;
+        }
+        //SWAP between two groups
+        oldS1Index = this->indexInState(q1);
+        oldS2Index = this->indexInState(q2);
+
+        this->quReg[q1] = qs2;
+        this->quReg[q2] = qs1;
+    }
+
+    //If internal indices have changed, rearrange
+    if (oldS1Index >= 0) {
+        s1.getQubitState()->reorderIndex(oldS1Index, this->indexInState(q2));
+    }
+    if (oldS2Index >= 0) {
+        s2.getQubitState()->reorderIndex(oldS2Index, this->indexInState(q1));
     }
 }

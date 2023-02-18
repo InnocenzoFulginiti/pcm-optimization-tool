@@ -51,6 +51,80 @@ void QubitState::normalize() {
     }
 }
 
+void QubitState::swapIndex(size_t q1, size_t q2) {
+    if(q1 >= this->nQubits) {
+        std::string msg = "Index q1 = " + std::to_string(q1) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+        throw std::out_of_range(msg);
+    }
+
+    if(q2 >= this->nQubits) {
+        std::string msg = "Index q2 = " + std::to_string(q2) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+        throw std::out_of_range(msg);
+    }
+
+    std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
+    for (auto [key, value] : this->map) {
+        BitSet k1 = key & (1 << q1);
+        BitSet k2 = key & (1 << q2);
+        BitSet newKey = key & ~((1 << q1) | (1 << q2));
+        if(q1 >= q2) {
+            newKey |= k1 >> (q1 - q2);
+            newKey |= k2 << (q1 - q2);
+        } else {
+            newKey |= k1 << (q2 - q1);
+            newKey |= k2 >> (q2 - q1);
+        }
+
+        newMap[newKey] = value;
+    }
+
+    this->map = newMap;
+}
+
+void QubitState::reorderIndex(size_t oldI, size_t newI) {
+    if(oldI >= this->nQubits) {
+        std::string msg = "Index oldI = " + std::to_string(oldI) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+        throw std::out_of_range(msg);
+    }
+
+    if(newI >= this->nQubits) {
+        std::string msg = "Index newI = " + std::to_string(newI) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+        throw std::out_of_range(msg);
+    }
+
+    //Left being MSB
+    size_t left = oldI > newI ? oldI : newI;
+    size_t right = oldI < newI ? oldI : newI;
+
+    std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
+    for (auto [key, value] : this->map) {
+        //Calculate new key
+        BitSet leftUnchanged = key & ~((1 << (left + 1)) - 1);
+        BitSet rightUnchanged = key & ((1 << right) - 1);
+        BitSet movingBit = key & (1 << oldI);
+
+        BitSet middle;
+        BitSet shiftedMoving;
+
+        if(oldI >= newI) {
+            //Move middle to the left
+            middle = key & (((1 << left) - 1) & ~((1 << right) - 1));
+            middle <<= 1;
+            shiftedMoving = movingBit >> (left - right);
+        } else {
+            //Move middle to the right
+            middle = key & (((1 << (left + 1)) - 1) & ~((1 << (right + 1)) - 1));
+            middle >>= 1;
+            shiftedMoving = movingBit << (left - right);
+        }
+
+        BitSet newKey(key.getSize(), leftUnchanged | middle | shiftedMoving | rightUnchanged);
+        newMap[newKey] = value;
+    }
+
+    this->map = newMap;
+}
+
 std::shared_ptr<QubitState>
 QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<int> indices1,
                     const std::shared_ptr<QubitState> &qubitState2, std::vector<int> indices2) {
