@@ -6,51 +6,6 @@
 
 #define SHOW_DEBUG_MSG false
 
-ActivationState ConstantPropagation::applyCompoundGate(const std::shared_ptr<UnionTable> &table,
-                                                       const std::vector<std::unique_ptr<qc::Operation>> &ops,
-                                                       const size_t maxAmplitudes,
-                                                       std::map<size_t, double> &measurementResults) {
-    std::vector<ActivationState> states{};
-
-    for (auto &gate: ops) {
-        states.emplace_back(applyGate(table, gate, maxAmplitudes, measurementResults));
-    }
-
-    //TODO: How to optimize compound gates?
-    return UNKNOWN;
-}
-
-ActivationState ConstantPropagation::applyCompoundGate(const std::shared_ptr<UnionTable> &table,
-                                                       const std::vector<std::unique_ptr<qc::Operation>> &ops,
-                                                       const std::vector<size_t> &controls,
-                                                       const size_t maxAmplitudes,
-                                                       std::map<size_t, double> &measurementResults) {
-    auto counts = table->countActivations(controls);
-    size_t notActivated = counts.first;
-    size_t activated = counts.second;
-
-    if (activated == 0 && !controls.empty()) {
-        return NEVER;
-    } else if (notActivated == 0 || controls.empty()) {
-        return applyCompoundGate(table, ops, maxAmplitudes, measurementResults);
-    } else {
-        //Apply gate with additional control
-        std::vector<ActivationState> states{};
-
-        for(auto& op: ops) {
-            //Insert extra controls into gate
-            std::unique_ptr<qc::Operation> copy = op->clone();
-            for(auto c: controls) {
-                copy->getControls().insert({(qc::Qubit) c});
-            }
-
-            states.emplace_back(applyGate(table, copy, maxAmplitudes, measurementResults));
-        }
-    }
-
-    return UNKNOWN;
-}
-
 ActivationState
 ConstantPropagation::applyGate(const std::shared_ptr<UnionTable> &table,
                                const std::unique_ptr<qc::Operation> &op,
@@ -121,17 +76,21 @@ ConstantPropagation::applyGate(const std::shared_ptr<UnionTable> &table,
         qc::Qubit i = op->getTargets()[0];
         qc::Qubit j = op->getTargets()[1];
 
-        qc::QuantumComputation swap(op->getNqubits());
-        swap.x(i, {j});
-        swap.x(j, {i});
-        swap.x(i, {j});
+        std::unique_ptr<qc::Operation> cx = std::make_unique<qc::StandardOperation>();
+        cx->setGate(qc::X);
+        cx->setControls(op->getControls());
 
-        std::vector<size_t> controls{};
-        for(auto c : op->getControls()) {
-            controls.emplace_back(c.qubit);
-        }
+        auto cx1 = cx->clone();
+        cx1->getControls().insert({j});
+        cx1->setTargets({i});
 
-        return applyCompoundGate(table, swap.getOps(), controls, maxAmplitudes,measurementResults);
+        auto cx2 = cx->clone();
+        cx2->getControls().insert({i});
+        cx2->setTargets({j});
+
+        applyGate(table, cx1, maxAmplitudes, measurementResults);
+        applyGate(table, cx2, maxAmplitudes, measurementResults);
+        applyGate(table, cx1, maxAmplitudes, measurementResults);
     }
 
     //Reset qubit to |0>
@@ -144,9 +103,9 @@ ConstantPropagation::applyGate(const std::shared_ptr<UnionTable> &table,
     }
 
     if (op->isCompoundOperation()) {
-        auto compound = dynamic_cast<qc::CompoundOperation *>(op.get());
-
-        return applyCompoundGate(table, compound->getOps(), maxAmplitudes, measurementResults);
+        std::cout << "Constant Propagation does not support Compound Gates, is skipped!" << std::endl;
+        table->setTop(op->getTargets()[0]);
+        return UNKNOWN;
     }
 
     if (op->getType() == qc::Measure) {

@@ -10,7 +10,8 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_approx.hpp>
 
-#define QASM_Bench_Path "../test/circuits/QASMBench"
+#define CIRCUITS_PATH "../test/circuits/"
+#define QASM_Bench_Path CIRCUITS_PATH "QASMBench"
 #include <filesystem>
 #include <string>
 
@@ -18,6 +19,7 @@
 #include "Definitions.hpp"
 #include "QuantumComputation.hpp"
 #include "ConstantPropagation.hpp"
+#include "CompoundGateInliner.hpp"
 
 #define CHECK_MESSAGE(cond, msg) do { INFO(msg); CHECK(cond); } while((void)0, 0)
 
