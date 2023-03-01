@@ -246,9 +246,9 @@ namespace qc {
             case Vdag:
                 return {Complex(0.5, -0.5), Complex(0.5, 0.5), Complex(0.5, 0.5), Complex(0.5, -0.5)};
             case U3:
-                return U3_MATR(this->parameter[0], this->parameter[1], this->parameter[2]);
+                return U3_MATR(this->parameter[2], this->parameter[1], this->parameter[0]);
             case U2:
-                return U3_MATR(PI / 2, this->parameter[0], this->parameter[1]);
+                return U3_MATR(PI / 2, this->parameter[1], this->parameter[0]);
             case Phase:
                 return U3_MATR(0, 0, this->parameter[0]);
             case SX:
@@ -264,7 +264,6 @@ namespace qc {
                 return U3_MATR(this->parameter[0], 0, 0);
             case RZ:
                 return U3_MATR(0, 0, this->parameter[0]);
-                //TODO: Make something for other gates
             case SWAP:
             case iSWAP:
             case Peres:
@@ -376,8 +375,8 @@ namespace qc {
 
     std::array<Complex, 4> Operation::U3_MATR(double theta, double phi, double lambda) {
         return {
-                Complex(cos(theta / 2), 0) * Complex(0, (phi + lambda) / 2).exp(),
-                Complex(0, 0) - Complex(sin(theta / 2), 0) * Complex(0, (phi - lambda) / 2).exp(),
+                Complex(cos(theta / 2), 0) * Complex(0, 0 - (phi + lambda) / 2).exp(),
+                Complex(0, 0) - Complex(sin(theta / 2), 0) * Complex(0, 0 - ((phi - lambda) / 2)).exp(),
                 Complex(sin(theta / 2), 0) * Complex(0, (phi - lambda) / 2).exp(),
                 Complex(cos(theta / 2), 0) * Complex(0, (phi + lambda) / 2).exp()
         };

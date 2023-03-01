@@ -96,7 +96,7 @@ public:
 
     //to_string
     [[nodiscard]] std::string to_string() const {
-        return std::to_string(value.real()) + ((value.imag() < 0)? "-" : "+") + std::to_string(value.imag()) + "i";
+        return std::to_string(value.real()) + ((value.imag() < 0)? "" : "+") + std::to_string(value.imag()) + "i";
     }
 private:
     std::complex<double> value;

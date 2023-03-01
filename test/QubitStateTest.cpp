@@ -108,63 +108,63 @@ TEST_CASE("Test Gate Identities") {
 
     auto nQubits = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-    QubitState qs(nQubits);
-    qs.clear();
+    auto qs = std::make_shared<QubitState>(nQubits);
+    qs->clear();
 
     for (int key = 1 << (nQubits - 1); key >= 0; key--) {
         //Generate Amplitudes for 2/3 of keys
         if (rand() % 3 > 0) {
-            qs[BitSet(nQubits, key)] = Complex(rand() % 100, rand() % 100);
+            (*qs)[BitSet(nQubits, key)] = Complex(rand() % 100, rand() % 100);
         } else {
             continue;
         }
     }
 
-    qs.normalize();
-    QubitState result(0);
+    qs->normalize();
+    auto result = std::make_shared<QubitState>(0);
 
     for (int target = 0; target < nQubits; target++) {
 
         //Use Relationships to verify
 
         //I = I
-        result = qs.clone();
-        result.applyGate(target, I);
-        CHECK_MESSAGE(qs == result,
+        result = qs->clone();
+        result->applyGate(target, I);
+        CHECK_MESSAGE(qs->operator==(*result),
                       "I = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs.to_string() + ", result: " + result.to_string());
+                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
 
         //XX = I
-        result = qs.clone();
-        result.applyGate(target, X);
-        result.applyGate(target, X);
-        CHECK_MESSAGE(qs == result,
+        result = qs->clone();
+        result->applyGate(target, X);
+        result->applyGate(target, X);
+        CHECK_MESSAGE(qs->operator==(*result),
                       "XX = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs.to_string() + ", result: " + result.to_string());
+                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
 
         //HH = I
-        result = qs.clone();
-        result.applyGate(target, H);
-        result.applyGate(target, H);
-        CHECK_MESSAGE(qs == result,
+        result = qs->clone();
+        result->applyGate(target, H);
+        result->applyGate(target, H);
+        CHECK_MESSAGE(qs->operator==(*result),
                       "HH = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs.to_string() + ", result: " + result.to_string());
+                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
 
         //ZZ = I
-        result = qs.clone();
-        result.applyGate(target, Z);
-        result.applyGate(target, Z);
-        CHECK_MESSAGE(qs == result,
+        result = qs->clone();
+        result->applyGate(target, Z);
+        result->applyGate(target, Z);
+        CHECK_MESSAGE(qs->operator==(*result),
                       "ZZ = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs.to_string() + ", result: " + result.to_string());
+                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
 
         //YY = I
-        result = qs.clone();
-        result.applyGate(target, Y);
-        result.applyGate(target, Y);
-        CHECK_MESSAGE(qs == result,
+        result = qs->clone();
+        result->applyGate(target, Y);
+        result->applyGate(target, Y);
+        CHECK_MESSAGE(qs->operator==(*result),
                       "YY = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs.to_string() + ", result: " + result.to_string());
+                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
     }
 }
 

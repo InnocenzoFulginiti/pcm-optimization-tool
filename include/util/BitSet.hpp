@@ -19,7 +19,9 @@ public:
 
     BitSet(int value) : size(MAX_QUBITS), bits(value) {}
 
-    BitSet(size_t size, int value) : size(size), bits(value) {};
+    BitSet(size_t value) : size(MAX_QUBITS), bits(value) {}
+
+    BitSet(size_t size, size_t value) : size(size), bits(value) {};
 
     explicit BitSet(std::bitset<MAX_QUBITS> bits) : size(MAX_QUBITS), bits(bits) {}
 
@@ -38,6 +40,10 @@ public:
     }
 
     bool operator[](const int index) const {
+        return bits[index];
+    }
+
+    bool operator[](const size_t index) const {
         return bits[index];
     }
 
