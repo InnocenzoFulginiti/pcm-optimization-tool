@@ -1,0 +1,12 @@
+//
+// Created by zuchna on 2/18/23.
+//
+
+#ifndef QCPROP_ACTIVATIONSTATE_HPP
+#define QCPROP_ACTIVATIONSTATE_HPP
+
+enum ActivationState {
+    ALWAYS, NEVER, SOMETIMES, UNKNOWN
+};
+
+#endif //QCPROP_ACTIVATIONSTATE_HPP

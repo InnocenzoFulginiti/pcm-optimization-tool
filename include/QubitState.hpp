@@ -30,7 +30,7 @@ public:
         this->map.clear();
     }
 
-    QubitState clone() const;
+    std::shared_ptr<QubitState> clone() const;
 
     void print(std::ostream &os) const;
 
@@ -118,6 +118,12 @@ public:
     void reorderIndex(size_t oldI, size_t newI);
 
     void swapIndex(size_t q1, size_t q2);
+
+    bool neverActivated(const std::vector<size_t> &indices) const;
+
+    void removeBit(size_t q);
+
+    static std::shared_ptr<QubitState> fromVector(std::vector<std::pair<size_t, Complex>> vector, size_t nQubits);
 
 private:
     size_t nQubits;

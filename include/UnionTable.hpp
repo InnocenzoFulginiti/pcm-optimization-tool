@@ -10,6 +10,7 @@
 #include <vector>
 #include "QubitState.hpp"
 #include "Definitions.hpp"
+#include "ActivationState.hpp"
 
 class UnionTable {
 public:
@@ -29,7 +30,7 @@ public:
         return this->quReg[index];
     }
 
-    size_t size() const {
+    [[nodiscard]] size_t size() const {
         return this->nQubits;
     }
 
@@ -43,9 +44,13 @@ public:
         return this->quReg;
     }
 
+    std::pair<ActivationState, std::vector<size_t>> minimizeControls(std::vector<size_t> controls);
+
     void swap(size_t q1, size_t q2);
 
     [[nodiscard]] size_t indexInState(size_t qubit) const;
+
+    [[nodiscard]] std::vector<size_t> indexInState(const std::vector<size_t>& qubit) const;
 
     [[nodiscard]] bool canActivate(size_t qubit) const;
 
@@ -57,6 +62,17 @@ public:
 
     void setTop(size_t qubit);
 
+    //Define methods to iterate over table
+    QubitStateOrTop *begin() {
+        return this->quReg;
+    }
+
+    QubitStateOrTop *end() {
+        return this->quReg + this->nQubits;
+    }
+
+    std::shared_ptr<UnionTable> clone() const;
+
 private:
     size_t nQubits;
     QubitStateOrTop *quReg;
@@ -64,6 +80,10 @@ private:
     [[nodiscard]] std::vector<size_t> qubitsInSameState(size_t qubit) const;
 
     bool anyIsTop(std::vector<size_t> indices);
+
+    bool isAlwaysOne(size_t q);
+
+    bool isAlwaysZero(size_t q);
 };
 
 

@@ -28,7 +28,8 @@ void QubitState::print(std::ostream &os) const {
 
 std::string QubitState::to_string() const {
     std::string str;
-    for (auto const &[key, val]: this->map) {
+    std::map ordered = std::map<BitSet, Complex>(this->map.begin(), this->map.end());
+    for (auto const &[key, val]: ordered) {
         str += "|" + key.to_string() + "> -> " + val.to_string() + ", ";
     }
 
@@ -52,22 +53,24 @@ void QubitState::normalize() {
 }
 
 void QubitState::swapIndex(size_t q1, size_t q2) {
-    if(q1 >= this->nQubits) {
-        std::string msg = "Index q1 = " + std::to_string(q1) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+    if (q1 >= this->nQubits) {
+        std::string msg = "Index q1 = " + std::to_string(q1) + " is out of bounds for QubitState with " +
+                          std::to_string(this->nQubits) + " qubits";
         throw std::out_of_range(msg);
     }
 
-    if(q2 >= this->nQubits) {
-        std::string msg = "Index q2 = " + std::to_string(q2) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+    if (q2 >= this->nQubits) {
+        std::string msg = "Index q2 = " + std::to_string(q2) + " is out of bounds for QubitState with " +
+                          std::to_string(this->nQubits) + " qubits";
         throw std::out_of_range(msg);
     }
 
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
-    for (auto [key, value] : this->map) {
+    for (auto [key, value]: this->map) {
         BitSet k1 = key & (1 << q1);
         BitSet k2 = key & (1 << q2);
         BitSet newKey = key & ~((1 << q1) | (1 << q2));
-        if(q1 >= q2) {
+        if (q1 >= q2) {
             newKey |= k1 >> (q1 - q2);
             newKey |= k2 << (q1 - q2);
         } else {
@@ -81,14 +84,30 @@ void QubitState::swapIndex(size_t q1, size_t q2) {
     this->map = newMap;
 }
 
+void QubitState::removeBit(size_t q) {
+    std::unordered_map<BitSet, Complex> newMap{};
+    this->nQubits--;
+
+    for (auto [key, value]: this->map) {
+        BitSet newKey = key & ((1 << q) - 1); //Keep bits right of q
+        newKey |= (key & (~((1 << (q+1)) - 1))) >> 1; //Keep bits left of q and shift them right
+        newKey.setSize(nQubits);
+        newMap[newKey] += value;
+    }
+
+    removeZeroEntries();
+}
+
 void QubitState::reorderIndex(size_t oldI, size_t newI) {
-    if(oldI >= this->nQubits) {
-        std::string msg = "Index oldI = " + std::to_string(oldI) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+    if (oldI >= this->nQubits) {
+        std::string msg = "Index oldI = " + std::to_string(oldI) + " is out of bounds for QubitState with " +
+                          std::to_string(this->nQubits) + " qubits";
         throw std::out_of_range(msg);
     }
 
-    if(newI >= this->nQubits) {
-        std::string msg = "Index newI = " + std::to_string(newI) + " is out of bounds for QubitState with " + std::to_string(this->nQubits) + " qubits";
+    if (newI >= this->nQubits) {
+        std::string msg = "Index newI = " + std::to_string(newI) + " is out of bounds for QubitState with " +
+                          std::to_string(this->nQubits) + " qubits";
         throw std::out_of_range(msg);
     }
 
@@ -97,7 +116,7 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
     size_t right = oldI < newI ? oldI : newI;
 
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
-    for (auto [key, value] : this->map) {
+    for (auto [key, value]: this->map) {
         //Calculate new key
         BitSet leftUnchanged = key & ~((1 << (left + 1)) - 1);
         BitSet rightUnchanged = key & ((1 << right) - 1);
@@ -106,7 +125,7 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
         BitSet middle;
         BitSet shiftedMoving;
 
-        if(oldI >= newI) {
+        if (oldI >= newI) {
             //Move middle to the left
             middle = key & (((1 << left) - 1) & ~((1 << right) - 1));
             middle <<= 1;
@@ -279,6 +298,21 @@ bool QubitState::canActivate(const std::vector<size_t> &indices) const {
     return false;
 }
 
+bool QubitState::neverActivated(const std::vector<size_t> &indices) const {
+    BitSet mask(0);
+    for (int index: indices) {
+        mask |= 1 << index;
+    }
+
+    for (auto const &[key, val]: this->map) {
+        if ((key & mask) != 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool QubitState::alwaysActivated(const std::vector<size_t> &indices) const {
     BitSet mask(0);
     for (int index: indices) {
@@ -294,9 +328,14 @@ bool QubitState::alwaysActivated(const std::vector<size_t> &indices) const {
     return true;
 }
 
-QubitState QubitState::clone() const {
-    auto clone = QubitState(QubitState(this->nQubits));
-    clone.map = this->map;
+std::shared_ptr<QubitState> QubitState::clone() const {
+    auto clone = std::make_shared<QubitState>(this->nQubits);
+    clone->clear();
+    //Copy map
+    for(auto const &[key, val]: this->map) {
+        clone->map[key] = val;
+    }
+
     return clone;
 }
 
@@ -332,8 +371,10 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
     //Merge activated and deactivated amplitudes
     this->map = activated.map;
     for (auto const [key, value]: deactivated.map) {
-        this->map[key] = value;
+        this->map[key] += value;
     }
+
+    this->removeZeroEntries();
 }
 
 QubitState &QubitState::operator*=(const Complex &rhs) {
@@ -345,9 +386,20 @@ QubitState &QubitState::operator*=(const Complex &rhs) {
 }
 
 QubitState &QubitState::operator+=(const QubitState &rhs) {
-    for(auto &[key, value] : this->map) {
+    for (auto &[key, value]: this->map) {
         value += rhs[key];
     }
 
     return *this;
+}
+
+std::shared_ptr<QubitState> QubitState::fromVector(std::vector<std::pair<size_t, Complex>> vector, size_t nQubits) {
+    auto state = std::make_shared<QubitState>(nQubits);
+    state->clear();
+
+    for (auto const &[key, value]: vector) {
+        state->map[BitSet(nQubits, key)] = value;
+    }
+
+    return state;
 }

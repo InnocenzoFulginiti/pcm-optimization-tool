@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <iostream>
+#include <set>
 #include "../include/UnionTable.hpp"
 
 UnionTable::UnionTable(size_t nQubits) {
@@ -95,11 +96,13 @@ std::string UnionTable::to_string() const {
         size_t i = 0;
         for (; i < nQubits; i++) {
             if (this->quReg[i].isQubitState()) {
-                commonPrefix = (size_t) this->quReg[i].getQubitState().get();
+                commonPrefix = (size_t)
+                        this->quReg[i].getQubitState().get();
             }
         }
         for (; i < nQubits; i++) {
-            commonPrefix &= (size_t) this->quReg[i].getQubitState().get();
+            commonPrefix &= (size_t)
+                    this->quReg[i].getQubitState().get();
         }
 
         commonPrefix = ~commonPrefix;
@@ -113,7 +116,7 @@ std::string UnionTable::to_string() const {
             os << "Top" << std::endl;
         } else {
             std::shared_ptr<QubitState> qubitState = this->quReg[i].getQubitState();
-            os << "@" << std::hex << (commonPrefix & (size_t) qubitState.get()) << std::dec << ": ";
+            os << "@" << std::hex << (commonPrefix & (size_t) qubitState.get()) << std::dec << ":\t";
             qubitState->print(os);
             os << std::endl;
         }
@@ -317,4 +320,161 @@ void UnionTable::swap(size_t q1, size_t q2) {
     if (oldS2Index >= 0) {
         s2.getQubitState()->reorderIndex(oldS2Index, this->indexInState(q1));
     }
+}
+
+bool UnionTable::isAlwaysOne(size_t q) {
+    if (quReg[q].isTop())
+        return false;
+
+    return quReg[q].getQubitState()->alwaysActivated({this->indexInState(q)});
+}
+
+bool UnionTable::isAlwaysZero(size_t q) {
+    if (quReg[q].isTop())
+        return false;
+
+    return quReg[q].getQubitState()->neverActivated({indexInState(q)});
+}
+
+std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std::vector<size_t> controls) {
+    //If there is a control state that is always 0 --> never activated
+    for (size_t control: controls) {
+        if (isAlwaysZero(control)) {
+            return {ActivationState::NEVER, {}};
+        }
+    }
+
+    std::vector<size_t> minimizedControls{};
+    //Add all that are TOP
+    bool controlsContainTop = false;
+    for (size_t i = 0; i < controls.size(); ++i) {
+        if (this->quReg[controls[i]].isTop()) {
+            minimizedControls.emplace_back(controls[i]);
+            controls.erase(controls.begin() + i);
+            i--;
+            controlsContainTop = true;
+        }
+    }
+
+    //Remove those that are always one
+    for (size_t i = 0; i < controls.size(); ++i) {
+        if (isAlwaysOne(controls[i])) {
+            controls.erase(controls.begin() + i);
+            i--;
+        }
+    }
+
+    if (controls.empty()) {
+        return {minimizedControls.empty() ? ActivationState::ALWAYS : ActivationState::UNKNOWN,
+                minimizedControls};
+    }
+
+    //Potential can only be within a group at this point, because we removed all always 0 and always 1
+    size_t groups = 0;
+    std::vector<std::vector<size_t>> groupIndices{};
+    std::vector<QubitState *> groupStates{};
+
+    for (auto control: controls) {
+        QubitState *cs = this->quReg[control].getQubitState().get();
+        bool found = false;
+        for (size_t i = 0; i < groupStates.size(); ++i) {
+            if (groupStates[i] == cs) {
+                groupIndices[i].emplace_back(control);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            groupStates.emplace_back(cs);
+            groupIndices.emplace_back(std::vector<size_t>{control});
+            groups++;
+        }
+    }
+
+    for (size_t groupI = 0; groupI < groups; ++groupI) {
+        if (groupIndices[groupI].size() == 1) {
+            minimizedControls.emplace_back(groupIndices[groupI][0]);
+            continue;
+        }
+
+        //See for each index if necessary
+        for (size_t indexI = 0; indexI < groupIndices[groupI].size(); indexI++) {
+            //For each key calculate result without index
+            size_t index = groupIndices[groupI][indexI];
+
+            bool isRedundant = true;
+            for (auto const &[key, value]: *groupStates[groupI]) {
+                bool res = true;
+                for (size_t calcI: groupIndices[groupI]) {
+                    if (calcI == index) continue;
+
+                    if (!key[indexInState(calcI)]) {
+                        res = false;
+                        break;
+                    }
+                }
+                if (res && !key[indexInState(index)]) {
+                    isRedundant = false;
+                    break;
+                }
+            }
+
+            if (isRedundant) {
+                groupIndices[groupI].erase(groupIndices[groupI].begin() + indexI);
+                indexI--;
+            } else {
+                minimizedControls.emplace_back(index);
+            }
+        }
+    }
+
+    if (controlsContainTop) {
+        return {ActivationState::UNKNOWN,
+                minimizedControls};
+    } else {
+        return {ActivationState::SOMETIMES,
+                minimizedControls};
+    }
+}
+
+std::shared_ptr<UnionTable> UnionTable::clone() const {
+    auto newTable = std::make_shared<UnionTable>(this->nQubits);
+
+    std::vector<size_t> leftForClone{};
+    for (size_t i = 0; i < this->nQubits; ++i) {
+        leftForClone.emplace_back(i);
+    }
+
+    while (!leftForClone.empty()) {
+        size_t t = leftForClone[0];
+        leftForClone.erase(leftForClone.begin());
+        if (this->quReg[t].isTop()) {
+            newTable->quReg[t] = TOP::T;
+            continue;
+        } else {
+            newTable->quReg[t] = this->quReg[t].getQubitState()->clone();
+
+            //See if state is entangled and set
+            for (size_t i = 0; i < leftForClone.size(); i++) {
+                size_t o = leftForClone[i];
+                if (this->quReg[o].isQubitState() &&
+                    this->quReg[o].getQubitState().get() == this->quReg[t].getQubitState().get()) {
+                    newTable->quReg[o] = newTable->quReg[t];
+                    leftForClone.erase(leftForClone.begin() + i);
+                    i--;
+                }
+            }
+        }
+    }
+
+    return newTable;
+}
+
+std::vector<size_t> UnionTable::indexInState(const std::vector<size_t> &qubit) const {
+    std::vector<size_t> indices{};
+    for (size_t q: qubit) {
+        indices.emplace_back(this->indexInState(q));
+    }
+
+    return indices;
 }
