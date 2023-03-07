@@ -1,7 +1,3 @@
-//
-// Created by zuchna on 2/4/23.
-//
-
 #include "TestUtils.hpp"
 
 TEST_CASE("QubitState normalization example") {
@@ -62,8 +58,8 @@ TEST_CASE("QubitState Merge Example") {
 
     std::shared_ptr<QubitState> result = QubitState::combine(q0_2, std::vector{0, 2}, q1, std::vector{1});
 
-    Complex expected0 = Complex(qc::SQRT_2_2 / 2.0, 0);
-    Complex expected2 = Complex(qc::SQRT_3 * qc::SQRT_2_2 / 2.0, 0);
+    Complex expected0 = Complex(SQRT_2_2 / 2.0, 0);
+    Complex expected2 = Complex(SQRT_3 * SQRT_2_2 / 2.0, 0);
     Complex expected5 = expected0;
     Complex expected7 = expected2;
 
@@ -92,8 +88,8 @@ TEST_CASE("Test Gate Identities") {
     std::array<Complex, 4> Z = {1, 0, 0, -1};
 
     std::array<Complex, 4> H = {
-            Complex(1 / qc::SQRT_2, 0), Complex(1 / qc::SQRT_2, 0),
-            Complex(1 / qc::SQRT_2, 0), Complex(-1 / qc::SQRT_2, 0)
+            Complex(SQRT_2_2, 0), Complex(SQRT_2_2, 0),
+            Complex(SQRT_2_2, 0), Complex(-SQRT_2_2, 0)
     };
 
     std::array<Complex, 4> S = {
@@ -103,15 +99,15 @@ TEST_CASE("Test Gate Identities") {
 
     std::array<Complex, 4> T = {
             Complex(1, 0), Complex(0, 0),
-            Complex(0, 0), Complex(1 / qc::SQRT_2, 1 / qc::SQRT_2)
+            Complex(0, 0), Complex(SQRT_2_2, SQRT_2_2)
     };
 
-    auto nQubits = GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    size_t nQubits = static_cast<size_t>(GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
     auto qs = std::make_shared<QubitState>(nQubits);
     qs->clear();
 
-    for (int key = 1 << (nQubits - 1); key >= 0; key--) {
+    for (size_t key = 0; key < (1 << (nQubits - 1)); key++) {
         //Generate Amplitudes for 2/3 of keys
         if (rand() % 3 > 0) {
             (*qs)[BitSet(nQubits, key)] = Complex(rand() % 100, rand() % 100);
@@ -123,7 +119,7 @@ TEST_CASE("Test Gate Identities") {
     qs->normalize();
     auto result = std::make_shared<QubitState>(0);
 
-    for (int target = 0; target < nQubits; target++) {
+    for (size_t target = 0; target < nQubits; target++) {
 
         //Use Relationships to verify
 
@@ -179,8 +175,8 @@ TEST_CASE("Test Reorder Indices") {
 
     sut[key] = Complex(1, 0);
 
-    size_t oldI = GENERATE(take(5, random(0, nQubits - 1)));
-    size_t newI = GENERATE(take(5, random(0, nQubits - 1)));
+    size_t oldI = static_cast<size_t>(GENERATE(take(5, random(0, nQubits - 1))));
+    size_t newI = static_cast<size_t>(GENERATE(take(5, random(0, nQubits - 1))));
 
 
     INFO("oldI: " + std::to_string(oldI));

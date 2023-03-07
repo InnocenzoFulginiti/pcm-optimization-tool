@@ -9,14 +9,17 @@
 #include <map>
 #include <complex>
 #include <bitset>
-#include "util/Complex.hpp"
 #include <iostream>
+#include <memory>
+#include <variant>
+
+#include "util/Complex.hpp"
 #include "util/BitSet.hpp"
-#include "operations/OpType.hpp"
+#include "../extern/qfr/include/operations/OpType.hpp"
 
 class QubitState {
 public:
-    explicit QubitState(size_t nQubits);
+    explicit QubitState(size_t _nQubits);
 
     QubitState(const QubitState &qubitState) = default;
 
@@ -101,7 +104,7 @@ public:
 
     [[nodiscard]] bool alwaysActivated(const std::vector<size_t> &indices) const;
 
-    std::pair<size_t, size_t> countActivations(std::vector<size_t> controls);
+    std::pair<size_t, size_t> countActivations(const std::vector<size_t> &indices);
 
     void applyGate(size_t target,
                    std::array<Complex, 4> matrix);
@@ -109,11 +112,6 @@ public:
     void applyGate(size_t target,
                    const std::vector<size_t> &controls,
                    std::array<Complex, 4> matrix);
-
-    //Write getter/setter for wasMeasured
-    [[nodiscard]] bool isWasMeasured() const{return this->wasMeasured;}
-
-    void setMeasured(){this->wasMeasured = true;}
 
     void reorderIndex(size_t oldI, size_t newI);
 
@@ -123,12 +121,11 @@ public:
 
     void removeBit(size_t q);
 
-    static std::shared_ptr<QubitState> fromVector(std::vector<std::pair<size_t, Complex>> vector, size_t nQubits);
+    static std::shared_ptr<QubitState> fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits);
 
 private:
     size_t nQubits;
     std::unordered_map<BitSet, Complex> map;
-    bool wasMeasured;
 
     void removeZeroEntries();
 };

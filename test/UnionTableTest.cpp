@@ -124,18 +124,18 @@ TEST_CASE("Test UnionTable::minimizeControls") {
     UnionTable ut(6);
     ut[0] = TOP::T;
     ut[1].getQubitState()->clear();
-    (*ut[1].getQubitState())[0] = qc::SQRT_2_2;
-    (*ut[1].getQubitState())[1] = qc::SQRT_2_2;
+    (*ut[1].getQubitState())[0] = SQRT_2_2;
+    (*ut[1].getQubitState())[1] = SQRT_2_2;
 
     ut[3] = ut[2];
     ut[3].getQubitState()->clear();
-    (*ut[3].getQubitState())[2] = qc::SQRT_2_2;
-    (*ut[3].getQubitState())[3] = qc::SQRT_2_2;
+    (*ut[3].getQubitState())[2] = SQRT_2_2;
+    (*ut[3].getQubitState())[3] = SQRT_2_2;
 
     ut[4] = ut[5];
     ut[4].getQubitState()->clear();
-    (*ut[4].getQubitState())[0] = qc::SQRT_2_2;
-    (*ut[4].getQubitState())[3] = qc::SQRT_2_2;
+    (*ut[4].getQubitState())[0] = SQRT_2_2;
+    (*ut[4].getQubitState())[3] = SQRT_2_2;
 
     auto res = ut.minimizeControls({0, 1, 2, 3, 4, 5});
 

@@ -1,7 +1,3 @@
-//
-// Created by zuchna on 2/18/23.
-//
-
 #ifndef QCPROP_ACTIVATIONSTATE_HPP
 #define QCPROP_ACTIVATIONSTATE_HPP
 

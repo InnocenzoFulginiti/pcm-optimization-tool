@@ -9,9 +9,12 @@
 class Complex {
 public:
     Complex() : value(0, 0) {}
-    explicit Complex(std::complex<double> value) : value(value) {}
+    explicit Complex(std::complex<double> clone) : value(clone) {}
     Complex(double re, double im) : value(re, im) {}
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "google-explicit-constructor"
     Complex(double re) : value(re) {}
+#pragma clang diagnostic pop
 
     //Write real/imag getters and setters
     void real(double re) {
@@ -22,11 +25,11 @@ public:
         this->value.imag(im);
     }
 
-    double real() const {
+    [[nodiscard]] double real() const {
         return this->value.real();
     }
 
-    double imag() const {
+    [[nodiscard]] double imag() const {
         return this->value.imag();
     }
 

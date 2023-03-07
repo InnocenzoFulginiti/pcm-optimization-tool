@@ -6,11 +6,11 @@
 #define QCPROP_CIRCUITOPTIMIZATION_HPP
 
 #include <vector>
-#include "QuantumComputation.hpp"
-#include "operations/Operation.hpp"
+#include "../extern/qfr/include/QuantumComputation.hpp"
 
 class CircuitOptimization {
 public:
+    virtual ~CircuitOptimization() = default;
     virtual qc::QuantumComputation optimize(qc::QuantumComputation &qc) const = 0;
 };
 

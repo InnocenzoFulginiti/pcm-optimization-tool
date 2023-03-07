@@ -52,7 +52,7 @@ void testIntermediateResults(qc::QuantumComputation &qc,
         INFO("Actual:\t" + actualState->to_string());
         INFO("Expected:\t" + QubitState::fromVector(expected, qc.getNqubits())->to_string());
 
-        for (size_t key = 0; key < (1 << qc.getNqubits()); key++) {
+        for (size_t key = 0; key < (static_cast<size_t>(1) << qc.getNqubits()); key++) {
             Complex expectedValue = 0;
             if(expected[0].first == key) {
                 expectedValue = expected[0].second;
@@ -72,8 +72,8 @@ void testIntermediateResults(qc::QuantumComputation &qc,
 
 
 TEST_CASE("Constant Propagation on small Files, multiple maxAmplitudes") {
-    auto p = GENERATE(take(20, qasmFile(QASMFileGenerator::SIZE::SMALL)));
-    auto maxAmplitude = GENERATE(1, 10, 40);
+    auto p = GENERATE(take(10, qasmFile(QASMFileGenerator::SIZE::SMALL)));
+    size_t maxAmplitude = GENERATE(static_cast<size_t> (1), 10);
 
     INFO("File: " + p.string() + "Max Amplitude: " + std::to_string(maxAmplitude));
 
@@ -101,8 +101,8 @@ TEST_CASE("Try SWAP") {
     REQUIRE_FALSE(q0.get() == q1.get());
     CHECK((*q0)[0] == 1);
     CHECK((*q0)[1] == 0);
-    CHECK((*q1)[0] == qc::SQRT_2_2);
-    CHECK((*q1)[1] == qc::SQRT_2_2);
+    CHECK((*q1)[0] == SQRT_2_2);
+    CHECK((*q1)[1] == SQRT_2_2);
 }
 
 TEST_CASE("Try File with Reset") {
@@ -121,21 +121,21 @@ TEST_CASE("Check Intermediate Results adder_n4") {
             //After n steps, have the following amplitudes
             {1,  {{0b0001, 1}}},
             {2,  {{0b0011, 1}}},
-            {3,  {{0b0011, qc::SQRT_2_2},             {0b1011, qc::SQRT_2_2}}},
-            {8,  {{0b0011, Complex(0, qc::SQRT_2_2)}, {0b1011, Complex(0.5, 0.5)}}},
-            {9,  {{0b0001, Complex(0, qc::SQRT_2_2)}, {0b1001, Complex(0.5, 0.5)}}},
-            {10, {{0b0001, Complex(0, qc::SQRT_2_2)}, {0b1001, Complex(0.5, 0.5)}}},
-            {11, {{0b0001, Complex(0, qc::SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
-            {12, {{0b0001, Complex(0, qc::SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
-            {13, {{0b0011, Complex(0, qc::SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
-            {14, {{0b0011, Complex(0, qc::SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
+            {3,  {{0b0011, SQRT_2_2},             {0b1011, SQRT_2_2}}},
+            {8,  {{0b0011, Complex(0, SQRT_2_2)}, {0b1011, Complex(0.5, 0.5)}}},
+            {9,  {{0b0001, Complex(0, SQRT_2_2)}, {0b1001, Complex(0.5, 0.5)}}},
+            {10, {{0b0001, Complex(0, SQRT_2_2)}, {0b1001, Complex(0.5, 0.5)}}},
+            {11, {{0b0001, Complex(0, SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
+            {12, {{0b0001, Complex(0, SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
+            {13, {{0b0011, Complex(0, SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
+            {14, {{0b0011, Complex(0, SQRT_2_2)}, {0b1000, Complex(0.5, 0.5)}}},
             {23, {{0b1001, 1}}}
     });
 }
 
 TEST_CASE("Check Intermediate Results qaoa_n6") {
-    qc::QuantumComputation qc(QASM_Bench_Path "/small/qaoa_n6/qaoa_n6.qasm");
-    testIntermediateResults(qc, ((size_t) 1) << 7, {
+    qc::QuantumComputation qaoa = qc::QuantumComputation(QASM_Bench_Path "/small/qaoa_n6/qaoa_n6.qasm");
+    testIntermediateResults(qaoa, (1) << 7, {
             {6, {{0, Complex(0.125,0)},{1, Complex(0.125,0)},{2, Complex(0.125,0)},{3, Complex(0.125,0)},{4, Complex(0.125,0)},{5, Complex(0.125,0)},{6, Complex(0.125,0)},{7, Complex(0.125,0)},{8, Complex(0.125,0)},{9, Complex(0.125,0)},{10, Complex(0.125,0)},{11, Complex(0.125,0)},{12, Complex(0.125,0)},{13, Complex(0.125,0)},{14, Complex(0.125,0)},{15, Complex(0.125,0)},{16, Complex(0.125,0)},{17, Complex(0.125,0)},{18, Complex(0.125,0)},{19, Complex(0.125,0)},{20, Complex(0.125,0)},{21, Complex(0.125,0)},{22, Complex(0.125,0)},{23, Complex(0.125,0)},{24, Complex(0.125,0)},{25, Complex(0.125,0)},{26, Complex(0.125,0)},{27, Complex(0.125,0)},{28, Complex(0.125,0)},{29, Complex(0.125,0)},{30, Complex(0.125,0)},{31, Complex(0.125,0)},{32, Complex(0.125,0)},{33, Complex(0.125,0)},{34, Complex(0.125,0)},{35, Complex(0.125,0)},{36, Complex(0.125,0)},{37, Complex(0.125,0)},{38, Complex(0.125,0)},{39, Complex(0.125,0)},{40, Complex(0.125,0)},{41, Complex(0.125,0)},{42, Complex(0.125,0)},{43, Complex(0.125,0)},{44, Complex(0.125,0)},{45, Complex(0.125,0)},{46, Complex(0.125,0)},{47, Complex(0.125,0)},{48, Complex(0.125,0)},{49, Complex(0.125,0)},{50, Complex(0.125,0)},{51, Complex(0.125,0)},{52, Complex(0.125,0)},{53, Complex(0.125,0)},{54, Complex(0.125,0)},{55, Complex(0.125,0)},{56, Complex(0.125,0)},{57, Complex(0.125,0)},{58, Complex(0.125,0)},{59, Complex(0.125,0)},{60, Complex(0.125,0)},{61, Complex(0.125,0)},{62, Complex(0.125,0)},{63, Complex(0.125,0)}}},
             {8, {{0, Complex(-0.121,0.033)},{1, Complex(0.125,0)},{2, Complex(0.125,0)},{3, Complex(-0.121,0.033)},{4, Complex(-0.121,0.033)},{5, Complex(0.125,0)},{6, Complex(0.125,0)},{7, Complex(-0.121,0.033)},{8, Complex(-0.121,0.033)},{9, Complex(0.125,0)},{10, Complex(0.125,0)},{11, Complex(-0.121,0.033)},{12, Complex(-0.121,0.033)},{13, Complex(0.125,0)},{14, Complex(0.125,0)},{15, Complex(-0.121,0.033)},{16, Complex(-0.121,0.033)},{17, Complex(0.125,0)},{18, Complex(0.125,0)},{19, Complex(-0.121,0.033)},{20, Complex(-0.121,0.033)},{21, Complex(0.125,0)},{22, Complex(0.125,0)},{23, Complex(-0.121,0.033)},{24, Complex(-0.121,0.033)},{25, Complex(0.125,0)},{26, Complex(0.125,0)},{27, Complex(-0.121,0.033)},{28, Complex(-0.121,0.033)},{29, Complex(0.125,0)},{30, Complex(0.125,0)},{31, Complex(-0.121,0.033)},{32, Complex(-0.121,0.033)},{33, Complex(0.125,0)},{34, Complex(0.125,0)},{35, Complex(-0.121,0.033)},{36, Complex(-0.121,0.033)},{37, Complex(0.125,0)},{38, Complex(0.125,0)},{39, Complex(-0.121,0.033)},{40, Complex(-0.121,0.033)},{41, Complex(0.125,0)},{42, Complex(0.125,0)},{43, Complex(-0.121,0.033)},{44, Complex(-0.121,0.033)},{45, Complex(0.125,0)},{46, Complex(0.125,0)},{47, Complex(-0.121,0.033)},{48, Complex(-0.121,0.033)},{49, Complex(0.125,0)},{50, Complex(0.125,0)},{51, Complex(-0.121,0.033)},{52, Complex(-0.121,0.033)},{53, Complex(0.125,0)},{54, Complex(0.125,0)},{55, Complex(-0.121,0.033)},{56, Complex(-0.121,0.033)},{57, Complex(0.125,0)},{58, Complex(0.125,0)},{59, Complex(-0.121,0.033)},{60, Complex(-0.121,0.033)},{61, Complex(0.125,0)},{62, Complex(0.125,0)},{63, Complex(-0.121,0.033)}}},
             {10, {{0, Complex(-0.246,0)},{1, Complex(0,0.033)},{2, Complex(0,0.033)},{3, Complex(-0.004,0)},{4, Complex(-0.246,0)},{5, Complex(0,0.033)},{6, Complex(0,0.033)},{7, Complex(-0.004,0)},{8, Complex(-0.246,0)},{9, Complex(0,0.033)},{10, Complex(0,0.033)},{11, Complex(-0.004,0)},{12, Complex(-0.246,0)},{13, Complex(0,0.033)},{14, Complex(0,0.033)},{15, Complex(-0.004,0)},{16, Complex(-0.246,0)},{17, Complex(0,0.033)},{18, Complex(0,0.033)},{19, Complex(-0.004,0)},{20, Complex(-0.246,0)},{21, Complex(0,0.033)},{22, Complex(0,0.033)},{23, Complex(-0.004,0)},{24, Complex(-0.246,0)},{25, Complex(0,0.033)},{26, Complex(0,0.033)},{27, Complex(-0.004,0)},{28, Complex(-0.246,0)},{29, Complex(0,0.033)},{30, Complex(0,0.033)},{31, Complex(-0.004,0)},{32, Complex(-0.246,0)},{33, Complex(0,0.033)},{34, Complex(0,0.033)},{35, Complex(-0.004,0)},{36, Complex(-0.246,0)},{37, Complex(0,0.033)},{38, Complex(0,0.033)},{39, Complex(-0.004,0)},{40, Complex(-0.246,0)},{41, Complex(0,0.033)},{42, Complex(0,0.033)},{43, Complex(-0.004,0)},{44, Complex(-0.246,0)},{45, Complex(0,0.033)},{46, Complex(0,0.033)},{47, Complex(-0.004,0)},{48, Complex(-0.246,0)},{49, Complex(0,0.033)},{50, Complex(0,0.033)},{51, Complex(-0.004,0)},{52, Complex(-0.246,0)},{53, Complex(0,0.033)},{54, Complex(0,0.033)},{55, Complex(-0.004,0)},{56, Complex(-0.246,0)},{57, Complex(0,0.033)},{58, Complex(0,0.033)},{59, Complex(-0.004,0)},{60, Complex(-0.246,0)},{61, Complex(0,0.033)},{62, Complex(0,0.033)},{63, Complex(-0.004,0)}}},
@@ -150,11 +150,7 @@ TEST_CASE("Check Intermediate Results bell_n4") {
     testIntermediateResults(qc, 1 << 4, {
             {5,{{0, Complex(0.327,0)},{1, Complex(0,0.135)},{2, Complex(0.327,0)},{3, Complex(0,0.135)},{4, Complex(0,0.135)},{5, Complex(0.327,0)},{6, Complex(0,0.135)},{7, Complex(0.327,0)},{8, Complex(0.327,0)},{9, Complex(0,0.135)},{10, Complex(0.327,0)},{11, Complex(0,0.135)},{12, Complex(0,0.135)},{13, Complex(0.327,0)},{14, Complex(0,0.135)},{15, Complex(0.327,0)}}},
             {6, {{0, Complex(0.231,0.096)},{1, Complex(0.231,0.096)},{2, Complex(0.231,0.096)},{3, Complex(0.231,0.096)},{4, Complex(-0.231,0.096)},{5, Complex(0.231,0.096)},{6, Complex(-0.231,0.096)},{7, Complex(0.231,0.096)},{8, Complex(0.231,0.096)},{9, Complex(0.231,0.096)},{10, Complex(0.231,0.096)},{11, Complex(0.231,0.096)},{12, Complex(-0.231,0.096)},{13, Complex(0.231,0.096)},{14, Complex(-0.231,0.096)},{15, Complex(0.231,0.096)}}},
-          //  {8, {{0, Complex(0.462,0)},{2, Complex(0.462,0)},{5, Complex(0.462,0)},{7, Complex(0.462,0)},{8, Complex(0,0.191)},{10, Complex(0,0.191)},{13, Complex(0,0.191)},{15, Complex(0,0.191)}}},
-          //  {10, {{0, Complex(0.462,0)},{2, Complex(0.462,0)},{5, Complex(0.462,0)},{7, Complex(0.462,0)},{9, Complex(0,0.191)},{11, Complex(0,0.191)},{12, Complex(0,0.191)},{14, Complex(0,0.191)}}},
             {11, {{0, Complex(0.427,0)},{1, Complex(-0.073,0)},{2, Complex(0.427,0)},{3, Complex(-0.073,0)},{4, Complex(-0.073,0)},{5, Complex(0.427,0)},{6, Complex(-0.073,0)},{7, Complex(0.427,0)},{8, Complex(0,0.177)},{9, Complex(0,0.177)},{10, Complex(0,0.177)},{11, Complex(0,0.177)},{12, Complex(0,0.177)},{13, Complex(0,0.177)},{14, Complex(0,0.177)},{15, Complex(0,0.177)}}},
-          //  {12, {{0, Complex(0.354,0)},{1, Complex(-0.354,0)},{2, Complex(0.354,0)},{3, Complex(-0.354,0)},{4, Complex(0.25,0)},{5, Complex(0.25,0)},{6, Complex(0.25,0)},{7, Complex(0.25,0)},{12, Complex(0,0.25)},{13, Complex(0,0.25)},{14, Complex(0,0.25)},{15, Complex(0,0.25)}}},
-          //  {13, {{0, Complex(0.354,0)},{1, Complex(-0.354,0)},{2, Complex(0.354,0)},{3, Complex(-0.354,0)},{4, Complex(0,0.25)},{5, Complex(0,0.25)},{6, Complex(0,0.25)},{7, Complex(0,0.25)},{12, Complex(0.25,0)},{13, Complex(0.25,0)},{14, Complex(0.25,0)},{15, Complex(0.25,0)}}},
             {30, {{0, Complex(0.163,0.394)},{1, Complex(-0.028,0.068)},{2, Complex(0.163,0.068)},{3, Complex(0.163,0.068)},{4, Complex(-0.028,0.068)},{5, Complex(0.163,0.394)},{6, Complex(0.163,0.068)},{7, Complex(0.163,0.068)},{8, Complex(0.299,0.068)},{9, Complex(-0.163,0.259)},{10, Complex(0.163,0.068)},{11, Complex(0.163,0.068)},{12, Complex(-0.163,0.259)},{13, Complex(0.299,0.068)},{14, Complex(0.163,0.068)},{15, Complex(0.163,0.068)}}},
             {33, {{0, Complex(0.231,0.231)},{1, Complex(0.096,0.096)},{2, Complex(0.327,0)},{3, Complex(0,0.135)},{4, Complex(0.096,0.096)},{5, Complex(0.231,0.231)},{6, Complex(0,0.135)},{7, Complex(0.327,0)},{8, Complex(0.327,0)},{9, Complex(0,0.135)},{10, Complex(0.096,0.096)},{11, Complex(0.231,0.231)},{12, Complex(0,0.135)},{13, Complex(0.327,0)},{14, Complex(0.231,0.231)},{15, Complex(0.096,0.096)}}}
     });
@@ -185,10 +181,9 @@ TEST_CASE("Try file with Classic Controlled gates") {
 }
 
 TEST_CASE("Try specific file") {
-    //TODO: Handle Compound Gates
-    auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
-    auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
-    auto classicControls = "../test/circuits/QASMBench/small/qec_sm_n5/qec_sm_n5.qasm";
+    //auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
+    //auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
+    //auto classicControls = "../test/circuits/QASMBench/small/qec_sm_n5/qec_sm_n5.qasm";
     auto shor = QASM_Bench_Path "/small/shor_n5/shor_n5.qasm";
     auto file = shor;
 

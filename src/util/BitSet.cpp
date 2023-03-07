@@ -5,8 +5,10 @@
 #include "../../include/util/BitSet.hpp"
 
 std::ostream &operator<<(std::ostream &os, const BitSet &bitSet) {
-    for(int i = ((int) bitSet.size)-1; i >= 0; i--)
+    for(size_t i = bitSet.size-1;; i--) {
         os << bitSet.bits[i];
+        if(i == 0) break;
+    }
 
     return os;
 }
