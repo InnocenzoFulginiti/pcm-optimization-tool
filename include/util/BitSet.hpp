@@ -1,7 +1,3 @@
-//
-// Created by Jakob on 01/02/2023.
-//
-
 #ifndef QCPROP_BITSET_HPP
 #define QCPROP_BITSET_HPP
 
@@ -17,17 +13,19 @@ class BitSet {
 public:
     BitSet() : size(MAX_QUBITS), bits() {}
 
-    BitSet(int value) : size(MAX_QUBITS), bits(value) {}
-
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "google-explicit-constructor"
+    BitSet(int value) : size(MAX_QUBITS), bits(static_cast<size_t>(value)) {}
     BitSet(size_t value) : size(MAX_QUBITS), bits(value) {}
+#pragma clang diagnostic pop
 
-    BitSet(size_t size, size_t value) : size(size), bits(value) {};
+    BitSet(size_t _size, size_t _value) : size(_size), bits(_value) {};
 
-    explicit BitSet(std::bitset<MAX_QUBITS> bits) : size(MAX_QUBITS), bits(bits) {}
+    explicit BitSet(std::bitset<MAX_QUBITS> _bits) : size(MAX_QUBITS), bits(_bits) {}
 
-    BitSet(size_t size, std::bitset<MAX_QUBITS> bits) : size(size), bits(bits) {}
+    BitSet(size_t _size, std::bitset<MAX_QUBITS> _bits) : size(_size), bits(_bits) {}
 
-    BitSet(size_t size, BitSet copy) : size(size), bits(copy.bits) {}
+    BitSet(size_t _size, BitSet _copy) : size(_size), bits(_copy.bits) {}
 
     ~BitSet() = default;
 
@@ -35,12 +33,12 @@ public:
         this->size = newSize;
     }
 
-    size_t getSize() const {
+    [[nodiscard]] size_t getSize() const {
         return size;
     }
 
     bool operator[](const int index) const {
-        return bits[index];
+        return bits[static_cast<size_t>(index)];
     }
 
     bool operator[](const size_t index) const {
@@ -58,8 +56,10 @@ public:
     }
 
     bool operator==(const BitSet &other) const {
-        for (int i = size - 1; i >= 0; i--) {
+        for (size_t i = size - 1;; i--) {
             if ((*this)[i] ^ other[i]) return false;
+
+            if (i == 0) break;
         }
         return true;
     }
@@ -93,20 +93,20 @@ public:
         return *this;
     }
 
-    BitSet operator>>(const int shift) const {
+    BitSet operator>>(const size_t shift) const {
         return {this->size, this->bits >> shift};
     }
 
-    BitSet operator<<(const int shift) const {
+    BitSet operator<<(const size_t shift) const {
         return {this->size, this->bits << shift};
     }
 
-    BitSet &operator<<=(const int shift) {
+    BitSet &operator<<=(const size_t shift) {
         this->bits <<= shift;
         return *this;
     }
 
-    BitSet &operator>>=(const int shift) {
+    BitSet &operator>>=(const size_t shift) {
         this->bits >>= shift;
         return *this;
     }

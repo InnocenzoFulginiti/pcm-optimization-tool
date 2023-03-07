@@ -1,3 +1,6 @@
 [submodule "test/circuits/QASMBench"]
 	path = test/circuits/QASMBench
 	url = git@github.com:jzuchna/QASMBench.git
+[submodule "extern/qfr"]
+	path = extern/qfr
+	url = git@github.com:cda-tum/qfr.git

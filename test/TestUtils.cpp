@@ -1,6 +1,3 @@
-//
-// Created by zuchna on 2/13/23.
-//
 #include "TestUtils.hpp"
 
 Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::SIZE s) {

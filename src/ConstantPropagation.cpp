@@ -3,6 +3,7 @@
 //
 
 #include "../include/ConstantPropagation.hpp"
+#include "MatrixGenerator.hpp"
 
 #define SHOW_DEBUG_MSG false
 
@@ -18,15 +19,14 @@ bool ConstantPropagation::checkAmplitude(const std::shared_ptr<UnionTable> &tabl
 }
 
 bool ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes) {
-    for (auto const &u: *table) {
+    return std::any_of(table->begin(), table->end(), [&](auto const &u) {
         if (u.isQubitState()) {
             if (u.getQubitState()->size() > maxAmplitudes) {
                 return true;
             }
         }
-    }
-
-    return false;
+        return false;
+    });
 }
 
 std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagation::propagate(
@@ -64,7 +64,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
             auto newOp = op->clone();
             op->setControls({});
             for (size_t c: min.second)
-                op->getControls().insert({(unsigned int) c});
+                op->getControls().insert({static_cast<unsigned int>(c)});
 
             switch (min.first) {
                 case ALWAYS:
@@ -81,9 +81,9 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
                     if ((*table)[i].isTop()) {
                         continue;
                     } else {
-                        (*table)[i].getQubitState()->applyGate(i, {j}, x->getMatrix());
-                        (*table)[i].getQubitState()->applyGate(j, min.second, x->getMatrix());
-                        (*table)[i].getQubitState()->applyGate(i, {j}, x->getMatrix());
+                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0}); //TODO: x->getMatrix());
+                        (*table)[i].getQubitState()->applyGate(j, min.second, {0, 1, 1, 0}); //TODO: x->getMatrix());
+                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0}); //TODO: x->getMatrix());
                         checkAmplitude(table, maxAmplitudes, i);
                     }
                     continue;
@@ -150,7 +150,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
             continue;
         }
 
-        auto G = op->getMatrix();
+        std::array<Complex, 4> G = getMatrix(*op);
 
         //Get Target State
         std::vector<size_t> controls{};
@@ -172,7 +172,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
             case UNKNOWN:
             case SOMETIMES:
                 for (auto c: min)
-                    newOp->getControls().insert({(unsigned int) c});
+                    newOp->getControls().insert({static_cast<unsigned int>(c)});
 
                 table->combine(target, min);
 
@@ -201,32 +201,7 @@ qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc)
     return optimize(qc, MAX_AMPLITUDES);
 }
 
-qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc, int maxAmplitudes) const {
-    auto [optQc, table] = propagate(qc, maxAmplitudes);
+qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc, int maxAmplitudes) {
+    auto [optQc, table] = propagate(qc, static_cast<size_t>(maxAmplitudes));
     return optQc.clone();
-}
-
-void ConstantPropagation::measure(const std::shared_ptr<UnionTable> &table, std::vector<qc::Qubit> qubits,
-                                  std::vector<size_t> classics, std::map<size_t, double> &results) {
-    for (size_t i = 0; i < qubits.size(); ++i) {
-        size_t target = qubits[i];
-
-        if (table->isTop(target)) {
-            results[classics[i]] = -1;
-            continue;
-        }
-
-        (*table)[target].getQubitState()->setMeasured();
-
-        auto targetState = ((*table)[target]).getQubitState();
-        size_t indexInState = table->indexInState(target);
-        double prob = 0.0;
-        for (auto &[key, val]: *targetState) {
-            if ((key & (1 << indexInState)) > 0) {
-                prob += val.norm();
-            }
-        }
-
-        results[classics[i]] = prob;
-    }
 }

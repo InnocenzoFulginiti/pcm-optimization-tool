@@ -14,7 +14,7 @@
 
 class UnionTable {
 public:
-    explicit UnionTable(size_t nQubits);
+    explicit UnionTable(size_t _nQubits);
 
     ~UnionTable();
 
@@ -71,7 +71,7 @@ public:
         return this->quReg + this->nQubits;
     }
 
-    std::shared_ptr<UnionTable> clone() const;
+    [[nodiscard]] std::shared_ptr<UnionTable> clone() const;
 
 private:
     size_t nQubits;

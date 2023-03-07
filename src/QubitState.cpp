@@ -6,10 +6,9 @@
 
 #include "../include/QubitState.hpp"
 
-QubitState::QubitState(size_t nQubits) {
-    this->nQubits = nQubits;
+QubitState::QubitState(size_t _nQubits) {
+    this->nQubits = _nQubits;
     this->map = std::unordered_map<BitSet, Complex>();
-    this->wasMeasured = false;
 
     map[BitSet(1, 0)] = Complex(1, 0);
 }
@@ -90,7 +89,7 @@ void QubitState::removeBit(size_t q) {
 
     for (auto [key, value]: this->map) {
         BitSet newKey = key & ((1 << q) - 1); //Keep bits right of q
-        newKey |= (key & (~((1 << (q+1)) - 1))) >> 1; //Keep bits left of q and shift them right
+        newKey |= (key & (~((1 << (q + 1)) - 1))) >> 1; //Keep bits left of q and shift them right
         newKey.setSize(nQubits);
         newMap[newKey] += value;
     }
@@ -99,6 +98,10 @@ void QubitState::removeBit(size_t q) {
 }
 
 void QubitState::reorderIndex(size_t oldI, size_t newI) {
+    if(oldI == newI) {
+        return;
+    }
+
     if (oldI >= this->nQubits) {
         std::string msg = "Index oldI = " + std::to_string(oldI) + " is out of bounds for QubitState with " +
                           std::to_string(this->nQubits) + " qubits";
@@ -179,11 +182,11 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
     //Iterate over qubitState entries
     for (const auto [key1, value1]: *qubitState1) {
         for (auto [key2, value2]: *qubitState2) {
-            //Calulate new key
+            //Calculate new key
             BitSet newKey = BitSet(qubitState1->getNQubits() + qubitState2->getNQubits(), 0);
-            int nextBitNew = 0;
-            int nextBit1 = 0;
-            int nextBit2 = 0;
+            size_t nextBitNew = 0;
+            size_t nextBit1 = 0;
+            size_t nextBit2 = 0;
             //TODO RENAME
             for (bool next1: interlace) {
                 if (next1) {
@@ -255,16 +258,13 @@ bool QubitState::operator==(const QubitState &rhs) const {
 
 bool QubitState::canActivate(size_t index) const {
     BitSet mask(1 << index);
-    for (auto const &[key, val]: this->map) {
-        if ((key & mask) != 0) {
-            return true;
-        }
-    }
 
-    return false;
+    return std::any_of(this->map.begin(), this->map.end(),
+                       [&](const std::pair<const BitSet, Complex> p)
+                       {return (p.first & mask) != 0;});
 }
 
-std::pair<size_t, size_t> QubitState::countActivations(std::vector<size_t> indices) {
+std::pair<size_t, size_t> QubitState::countActivations(const std::vector<size_t>& indices) {
     size_t zeros = 0;
     size_t ones = 0;
     BitSet mask(0);
@@ -285,54 +285,42 @@ std::pair<size_t, size_t> QubitState::countActivations(std::vector<size_t> indic
 
 bool QubitState::canActivate(const std::vector<size_t> &indices) const {
     BitSet mask(0);
-    for (int index: indices) {
+    for (size_t index: indices) {
         mask |= 1 << index;
     }
 
-    for (auto const &[key, val]: this->map) {
-        if ((key & mask) == mask) {
-            return true;
-        }
-    }
-
-    return false;
+    return std::any_of(this->map.begin(), this->map.end(),
+                [&](const std::pair<const BitSet, Complex> p)
+                {return (p.first & mask) == mask;});
 }
 
 bool QubitState::neverActivated(const std::vector<size_t> &indices) const {
     BitSet mask(0);
-    for (int index: indices) {
+    for (size_t index: indices) {
         mask |= 1 << index;
     }
 
-    for (auto const &[key, val]: this->map) {
-        if ((key & mask) != 0) {
-            return false;
-        }
-    }
-
-    return true;
+    return std::all_of(this->map.begin(), this->map.end(),
+                [&](const std::pair<const BitSet, Complex> p)
+                {return (p.first & mask) == 0;});
 }
 
 bool QubitState::alwaysActivated(const std::vector<size_t> &indices) const {
     BitSet mask(0);
-    for (int index: indices) {
+    for (size_t index: indices) {
         mask |= 1 << index;
     }
 
-    for (auto const &[key, val]: this->map) {
-        if ((key & mask) != mask) {
-            return false;
-        }
-    }
-
-    return true;
+    return std::all_of(this->map.begin(), this->map.end(),
+                [&](const std::pair<const BitSet, Complex> p)
+                {return (p.first & mask) == mask;});
 }
 
 std::shared_ptr<QubitState> QubitState::clone() const {
     auto clone = std::make_shared<QubitState>(this->nQubits);
     clone->clear();
     //Copy map
-    for(auto const &[key, val]: this->map) {
+    for (auto const &[key, val]: this->map) {
         clone->map[key] = val;
     }
 
@@ -393,7 +381,7 @@ QubitState &QubitState::operator+=(const QubitState &rhs) {
     return *this;
 }
 
-std::shared_ptr<QubitState> QubitState::fromVector(std::vector<std::pair<size_t, Complex>> vector, size_t nQubits) {
+std::shared_ptr<QubitState> QubitState::fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits) {
     auto state = std::make_shared<QubitState>(nQubits);
     state->clear();
 

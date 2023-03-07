@@ -7,10 +7,10 @@
 #include <set>
 #include "../include/UnionTable.hpp"
 
-UnionTable::UnionTable(size_t nQubits) {
-    this->nQubits = nQubits;
-    this->quReg = new QubitStateOrTop[nQubits];
-    for (int i = 0; i < (int) nQubits; i++) {
+UnionTable::UnionTable(size_t _nQubits) {
+    this->nQubits = _nQubits;
+    this->quReg = new QubitStateOrTop[_nQubits];
+    for (size_t i = 0; i < _nQubits; i++) {
         this->quReg[i] = std::make_shared<QubitState>(1);
     }
 }
@@ -96,27 +96,24 @@ std::string UnionTable::to_string() const {
         size_t i = 0;
         for (; i < nQubits; i++) {
             if (this->quReg[i].isQubitState()) {
-                commonPrefix = (size_t)
-                        this->quReg[i].getQubitState().get();
+                commonPrefix = reinterpret_cast<size_t>(this->quReg[i].getQubitState().get());
             }
         }
         for (; i < nQubits; i++) {
-            commonPrefix &= (size_t)
-                    this->quReg[i].getQubitState().get();
+            commonPrefix &= reinterpret_cast<size_t>(this->quReg[i].getQubitState().get());
         }
 
         commonPrefix = ~commonPrefix;
     }
 
-
     std::stringstream os;
-    for (int i = 0; i < (int) nQubits; i++) {
+    for (size_t i = 0; i < nQubits; i++) {
         os << i << ": -> ";
         if (this->quReg[i].isTop()) {
             os << "Top" << std::endl;
         } else {
             std::shared_ptr<QubitState> qubitState = this->quReg[i].getQubitState();
-            os << "@" << std::hex << (commonPrefix & (size_t) qubitState.get()) << std::dec << ":\t";
+            os << "@" << std::hex << (commonPrefix & reinterpret_cast<size_t>(qubitState.get())) << std::dec << ":\t";
             qubitState->print(os);
             os << std::endl;
         }
@@ -142,7 +139,7 @@ bool UnionTable::canActivate(std::vector<size_t> controls) const {
             for (size_t j = i + 1; j < controls.size(); ++j) {
                 if (controls[j] == otherIndex) {
                     internalIndices.emplace_back(this->indexInState(otherIndex));
-                    controls.erase(controls.begin() + j);
+                    controls.erase(controls.begin() + static_cast<long long>(j));
                     break;
                 }
             }
@@ -186,7 +183,7 @@ std::pair<size_t, size_t> UnionTable::countActivations(std::vector<size_t> contr
             for (size_t j = i + 1; j < controls.size(); ++j) {
                 if (controls[j] == otherIndex) {
                     internalIndices.emplace_back(this->indexInState(otherIndex));
-                    controls.erase(controls.begin() + j);
+                    controls.erase(controls.begin() + static_cast<long long>(j));
                     break;
                 }
             }
@@ -213,7 +210,7 @@ std::vector<size_t> UnionTable::qubitsInSameState(size_t qubit) const {
     std::shared_ptr<QubitState> qubitState = this->quReg[qubit].getQubitState();
 
     std::vector<size_t> qubitsInSameState{};
-    for (int i = 0; i < (int) nQubits; ++i) {
+    for (size_t i = 0; i < nQubits; ++i) {
         if (this->quReg[i].isTop())
             continue;
 
@@ -242,7 +239,7 @@ size_t UnionTable::indexInState(size_t qubit) const {
     QubitStateOrTop target = this->quReg[qubit];
 
     if (target.isTop()) {
-        return -1;
+        return 0;
     }
 
     std::shared_ptr<QubitState> targetState = target.getQubitState();
@@ -284,9 +281,8 @@ void UnionTable::swap(size_t q1, size_t q2) {
         return;
     }
 
-    int oldS1Index = -1;
-    int oldS2Index = -1;
-
+    size_t oldS1Index = 0;
+    size_t oldS2Index = 0;
 
     if (s1.isTop() && s2.isQubitState()) {
         oldS2Index = this->indexInState(q2);
@@ -313,13 +309,9 @@ void UnionTable::swap(size_t q1, size_t q2) {
         this->quReg[q2] = qs1;
     }
 
-    //If internal indices have changed, rearrange
-    if (oldS1Index >= 0) {
-        s1.getQubitState()->reorderIndex(oldS1Index, this->indexInState(q2));
-    }
-    if (oldS2Index >= 0) {
-        s2.getQubitState()->reorderIndex(oldS2Index, this->indexInState(q1));
-    }
+    //If internal indices have changed, rearrange them
+    s1.getQubitState()->reorderIndex(oldS1Index, this->indexInState(q2));
+    s2.getQubitState()->reorderIndex(oldS2Index, this->indexInState(q1));
 }
 
 bool UnionTable::isAlwaysOne(size_t q) {
@@ -350,7 +342,7 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
     for (size_t i = 0; i < controls.size(); ++i) {
         if (this->quReg[controls[i]].isTop()) {
             minimizedControls.emplace_back(controls[i]);
-            controls.erase(controls.begin() + i);
+            controls.erase(controls.begin() + static_cast<long long>(i));
             i--;
             controlsContainTop = true;
         }
@@ -359,7 +351,7 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
     //Remove those that are always one
     for (size_t i = 0; i < controls.size(); ++i) {
         if (isAlwaysOne(controls[i])) {
-            controls.erase(controls.begin() + i);
+            controls.erase(controls.begin() + static_cast<long long>(i));
             i--;
         }
     }
@@ -420,7 +412,7 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
             }
 
             if (isRedundant) {
-                groupIndices[groupI].erase(groupIndices[groupI].begin() + indexI);
+                groupIndices[groupI].erase(groupIndices[groupI].begin() + static_cast<long long>(indexI));
                 indexI--;
             } else {
                 minimizedControls.emplace_back(index);
@@ -460,7 +452,7 @@ std::shared_ptr<UnionTable> UnionTable::clone() const {
                 if (this->quReg[o].isQubitState() &&
                     this->quReg[o].getQubitState().get() == this->quReg[t].getQubitState().get()) {
                     newTable->quReg[o] = newTable->quReg[t];
-                    leftForClone.erase(leftForClone.begin() + i);
+                    leftForClone.erase(leftForClone.begin() + static_cast<long long>(i));
                     i--;
                 }
             }
@@ -472,6 +464,7 @@ std::shared_ptr<UnionTable> UnionTable::clone() const {
 
 std::vector<size_t> UnionTable::indexInState(const std::vector<size_t> &qubit) const {
     std::vector<size_t> indices{};
+    indices.reserve(qubit.size());
     for (size_t q: qubit) {
         indices.emplace_back(this->indexInState(q));
     }
