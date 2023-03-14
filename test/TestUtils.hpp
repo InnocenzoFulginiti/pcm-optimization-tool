@@ -17,8 +17,16 @@
 #include "Definitions.hpp"
 #include "ConstantPropagation.hpp"
 #include "MatrixGenerator.hpp"
+#include "CircuitOptimizer.hpp"
 
 #define CHECK_MESSAGE(cond, msg) do { INFO(msg); CHECK(cond); } while((void)0, 0)
+
+void approx(const Complex& expected, const Complex& actual, double epsilon = 1e-10);
+void approx(const std::shared_ptr<QubitState>& expected, const std::shared_ptr<QubitState>& actual, double epsilon = 1e-10);
+
+std::shared_ptr<QubitState> generateRandomState(size_t nQubits, long long seed = std::time(nullptr));
+QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop = 0.33, long long seed = std::time(nullptr));
+std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, long long seed = std::time(nullptr));
 
 namespace fs = std::filesystem;
 
@@ -43,7 +51,34 @@ private:
     bool next() override;
 
     std::string stringifyImpl() const override;
-    static std::vector<fs::path> findQASMFiles(const std::string& subfolder);
+
+    static std::vector<fs::path> findQASMFiles(const std::string &subfolder);
 };
 
 Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::SIZE s);
+
+class CircuitMetrics {
+public:
+    explicit CircuitMetrics(const fs::path& pathOfQasmFile);
+    [[nodiscard]] std::string csvLine() const;
+    static std::string csvHeader();
+
+private:
+    std::string fileName;
+    int qubitCount,
+            circuitDepth,
+            circuitWidth,
+            dualGateCount,
+            gateCount;
+    float retLife,
+            gateDens,
+            measDens,
+            sizeFact,
+            entangleVar,
+            commSuperma,
+            measSuperma,
+            depthSuperma,
+            entangleSuperma,
+            parallelismSuperma,
+            livenessSuperma;
+};

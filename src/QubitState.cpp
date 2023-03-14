@@ -180,19 +180,19 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
     newQubitState->clear();
 
     //Iterate over qubitState entries
-    for (const auto [key1, value1]: *qubitState1) {
-        for (auto [key2, value2]: *qubitState2) {
+    for (const auto& [key1, value1]: *qubitState1) {
+        for (const auto& [key2, value2]: *qubitState2) {
             //Calculate new key
             BitSet newKey = BitSet(qubitState1->getNQubits() + qubitState2->getNQubits(), 0);
             size_t nextBitNew = 0;
             size_t nextBit1 = 0;
             size_t nextBit2 = 0;
-            //TODO RENAME
-            for (bool next1: interlace) {
-                if (next1) {
+            for (bool nextIsFrom1: interlace) {
+                if (nextIsFrom1) {
                     newKey |= ((key1 & (1 << nextBit1)) >> nextBit1) << nextBitNew;
                     nextBit1++;
                 } else {
+                    //use next bit from 2 first
                     newKey |= ((key2 & (1 << nextBit2)) >> nextBit2) << nextBitNew;
                     nextBit2++;
                 }
@@ -253,7 +253,17 @@ void QubitState::removeZeroEntries() {
 }
 
 bool QubitState::operator==(const QubitState &rhs) const {
-    return map == rhs.map;
+    if(this->size() != rhs.size())
+        return false;
+
+    for(auto const &[key, val]: this->map) {
+        if(rhs.map.find(key) == rhs.map.end())
+            return false;
+        if(val != rhs.map.at(key))
+            return false;
+    }
+
+    return true;
 }
 
 bool QubitState::canActivate(size_t index) const {
@@ -345,7 +355,7 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
     QubitState deactivated(this->nQubits);
     deactivated.clear();
 
-    for (auto const [key, value]: this->map) {
+    for (auto const& [key, value]: this->map) {
         if ((key & mask) == mask) {
             activated[key] = value;
         } else {
@@ -358,7 +368,7 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
 
     //Merge activated and deactivated amplitudes
     this->map = activated.map;
-    for (auto const [key, value]: deactivated.map) {
+    for (auto const& [key, value]: deactivated.map) {
         this->map[key] += value;
     }
 

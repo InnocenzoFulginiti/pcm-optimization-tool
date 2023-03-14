@@ -148,6 +148,15 @@ public:
 
     QubitStateOrTop &operator=(const QubitStateOrTop &qubitStateOrTop) = default;
 
+    QubitStateOrTop &operator=(const std::shared_ptr<QubitStateOrTop> &qubitState) {
+        if(qubitState->isTop()) {
+            this->variant = TOP::T;
+        } else {
+            this->variant = qubitState->getQubitState()->clone();
+        }
+        return *this;
+    }
+
     QubitStateOrTop &operator=(const std::shared_ptr<QubitState> &qubitState) {
         this->variant = qubitState;
         return *this;
@@ -159,7 +168,13 @@ public:
     }
 
     bool operator==(const QubitStateOrTop &rhs) const {
-        return this->variant == rhs.variant;
+        if(this->isTop() && rhs.isTop()) {
+            return true;
+        } else if(this->isTop() || rhs.isTop()) {
+            return false;
+        } else {
+            return (*this->getQubitState()) == (*rhs.getQubitState());
+        }
     }
 
     bool operator!=(const QubitStateOrTop &rhs) const {

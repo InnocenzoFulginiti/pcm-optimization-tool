@@ -21,6 +21,8 @@ check_submodule_present(qfr)
 
 add_subdirectory(src)
 
+add_executable(${PROJECT_NAME}_main src/main.cpp)
+target_link_libraries(${PROJECT_NAME}_main PUBLIC ${PROJECT_NAME})
 
 add_library(Catch INTERFACE)
 target_include_directories(Catch
@@ -34,6 +36,7 @@ FetchContent_Declare(
         Catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
         GIT_TAG v3.3.2 # or a later release
+        GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(Catch2)
 add_executable(tests
@@ -44,7 +47,7 @@ add_executable(tests
         test/OperationTest.cpp
         test/ConstantPropagationTest.cpp
         test/TestUtils.cpp
-        )
+        test/Benchmark.cpp)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)

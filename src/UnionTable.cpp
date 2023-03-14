@@ -91,23 +91,33 @@ void UnionTable::print(std::ostream &os) const {
 }
 
 std::string UnionTable::to_string() const {
-    size_t commonPrefix;
-    if (nQubits > 0) {
-        size_t i = 0;
-        for (; i < nQubits; i++) {
-            if (this->quReg[i].isQubitState()) {
-                commonPrefix = reinterpret_cast<size_t>(this->quReg[i].getQubitState().get());
-            }
+    size_t i = 0;
+    size_t commonPrefix = 0xFFFFFFFFFFFFFFFF;
+    size_t compPref;
+    for (i = 0; i < nQubits; i++) {
+        if (quReg[i].isTop()) {
+            continue;
+        } else {
+            compPref = reinterpret_cast<size_t>(quReg[i].getQubitState().get());
+            break;
         }
-        for (; i < nQubits; i++) {
-            commonPrefix &= reinterpret_cast<size_t>(this->quReg[i].getQubitState().get());
-        }
-
-        commonPrefix = ~commonPrefix;
     }
 
+    for (; i < nQubits; i++) {
+        if (quReg[i].isTop()) {
+            continue;
+        } else {
+            size_t currentPrefix = reinterpret_cast<size_t>(quReg[i].getQubitState().get());
+            while ((commonPrefix & currentPrefix) != (commonPrefix & compPref)) {
+                commonPrefix <<= 1;
+            }
+        }
+    }
+
+    commonPrefix = ~commonPrefix;
+
     std::stringstream os;
-    for (size_t i = 0; i < nQubits; i++) {
+    for (i = 0; i < nQubits; i++) {
         os << i << ": -> ";
         if (this->quReg[i].isTop()) {
             os << "Top" << std::endl;
@@ -121,118 +131,14 @@ std::string UnionTable::to_string() const {
     return os.str();
 }
 
-bool UnionTable::canActivate(std::vector<size_t> controls) const {
-    for (size_t i = 0; i < controls.size(); ++i) {
-        size_t target = controls[i];
-        if (this->quReg[target].isTop())
-            return false;
-
-        auto targetState = this->quReg[target].getQubitState();
-
-
-        std::vector<size_t> qubitsInSameState = this->qubitsInSameState(target);
-        //Add first index of target to list of indices
-        std::vector<size_t> internalIndices{this->indexInState(target)};
-
-        //Find other indices in controls that might be in the same state
-        for (size_t otherIndex: qubitsInSameState) {
-            for (size_t j = i + 1; j < controls.size(); ++j) {
-                if (controls[j] == otherIndex) {
-                    internalIndices.emplace_back(this->indexInState(otherIndex));
-                    controls.erase(controls.begin() + static_cast<long long>(j));
-                    break;
-                }
-            }
-        }
-
-        //Check if group can activate
-        if (!targetState->canActivate(internalIndices))
-            return false;
-    }
-
-    //If all groups can activate, return true
-    return true;
-}
-
 bool UnionTable::anyIsTop(std::vector<size_t> indices) {
     return std::any_of(indices.begin(), indices.end(),
                        [this](size_t index) { return this->isTop(index); }
     );
 }
 
-std::pair<size_t, size_t> UnionTable::countActivations(std::vector<size_t> controls) {
-    size_t zeros = 0;
-    size_t ones = 0;
-
-    if (this->anyIsTop(controls)) {
-        //TODO: Error handling
-        return {-1, -1};
-    }
-
-    for (size_t i = 0; i < controls.size(); ++i) {
-        size_t target = controls[i];
-
-        auto targetState = this->quReg[target].getQubitState();
-
-        std::vector<size_t> qubitsInSameState = this->qubitsInSameState(target);
-        //Add first index of target to list of indices
-        std::vector<size_t> internalIndices{this->indexInState(target)};
-
-        //Find other indices in controls that might be in the same state
-        for (size_t otherIndex: qubitsInSameState) {
-            for (size_t j = i + 1; j < controls.size(); ++j) {
-                if (controls[j] == otherIndex) {
-                    internalIndices.emplace_back(this->indexInState(otherIndex));
-                    controls.erase(controls.begin() + static_cast<long long>(j));
-                    break;
-                }
-            }
-        }
-
-        //Check if group can activate
-        std::pair counts = targetState->countActivations(internalIndices);
-        zeros += counts.first;
-        ones += counts.second;
-    }
-
-    //If all groups can activate, return true
-    return {zeros, ones};
-}
-
 bool UnionTable::isTop(size_t index) const {
     return this->quReg[index].isTop();
-}
-
-std::vector<size_t> UnionTable::qubitsInSameState(size_t qubit) const {
-    if (this->quReg[qubit].isTop())
-        return {};
-
-    std::shared_ptr<QubitState> qubitState = this->quReg[qubit].getQubitState();
-
-    std::vector<size_t> qubitsInSameState{};
-    for (size_t i = 0; i < nQubits; ++i) {
-        if (this->quReg[i].isTop())
-            continue;
-
-        std::shared_ptr<QubitState> otherQubitState = this->quReg[i].getQubitState();
-        if (qubitState == otherQubitState)
-            qubitsInSameState.emplace_back(i);
-    }
-
-    return qubitsInSameState;
-}
-
-bool UnionTable::canActivate(size_t qubit) const {
-    QubitStateOrTop target = this->quReg[qubit];
-    if (target.isTop()) {
-        //TODO: Error
-        return false;
-    }
-
-    std::shared_ptr<QubitState> targetState = target.getQubitState();
-    size_t inStateIndex = this->indexInState(qubit);
-
-    return targetState->canActivate(inStateIndex);
 }
 
 size_t UnionTable::indexInState(size_t qubit) const {
@@ -310,8 +216,12 @@ void UnionTable::swap(size_t q1, size_t q2) {
     }
 
     //If internal indices have changed, rearrange them
-    s1.getQubitState()->reorderIndex(oldS1Index, this->indexInState(q2));
-    s2.getQubitState()->reorderIndex(oldS2Index, this->indexInState(q1));
+    if(s1.isQubitState()) {
+        s1.getQubitState()->reorderIndex(oldS1Index, this->indexInState(q2));
+    }
+    if(s2.isQubitState()) {
+        s2.getQubitState()->reorderIndex(oldS2Index, this->indexInState(q1));
+    }
 }
 
 bool UnionTable::isAlwaysOne(size_t q) {
@@ -389,6 +299,8 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
             continue;
         }
 
+        bool groupCanActivate = false;
+
         //See for each index if necessary
         for (size_t indexI = 0; indexI < groupIndices[groupI].size(); indexI++) {
             //For each key calculate result without index
@@ -396,6 +308,8 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
 
             bool isRedundant = true;
             for (auto const &[key, value]: *groupStates[groupI]) {
+                if(!isRedundant && groupCanActivate) break;
+
                 bool res = true;
                 for (size_t calcI: groupIndices[groupI]) {
                     if (calcI == index) continue;
@@ -405,10 +319,18 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
                         break;
                     }
                 }
-                if (res && !key[indexInState(index)]) {
-                    isRedundant = false;
-                    break;
+
+                if(!groupCanActivate && res && key[indexInState(index)]) {
+                    groupCanActivate = true;
                 }
+
+                if (isRedundant && res && !key[indexInState(index)]) {
+                    isRedundant = false;
+                }
+            }
+
+            if(!groupCanActivate) {
+                return {ActivationState::NEVER, {}};
             }
 
             if (isRedundant) {
@@ -470,4 +392,14 @@ std::vector<size_t> UnionTable::indexInState(const std::vector<size_t> &qubit) c
     }
 
     return indices;
+}
+
+bool UnionTable::operator==(const UnionTable &other) const {
+    if(this->nQubits != other.nQubits) return false;
+
+    for (size_t i = 0; i < this->nQubits; ++i) {
+        if(this->quReg[i] != other.quReg[i]) return false;
+    }
+
+    return true;
 }

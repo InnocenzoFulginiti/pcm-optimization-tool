@@ -5,7 +5,6 @@
 #include <string>
 #include <iostream>
 #include "../include/QuantumComputation.hpp"
-#include "../include/CircuitOptimization.hpp"
 #include "../include/ConstantPropagation.hpp"
 
 
@@ -22,15 +21,7 @@ int main() {
     qc.print(std::cout);
     std::cout << std::endl;
 
-    //List of CircuitOptimizations that are all applied to ops
-    std::vector<std::unique_ptr<CircuitOptimization>> optimizations;
-    optimizations.push_back(std::make_unique<ConstantPropagation>());
-
-    //Apply all CircuitOptimizations to ops
-    for (auto& opt : optimizations) {
-        qc = opt->optimize(qc);
-    }
-
+    qc = ConstantPropagation::optimize(qc);
 
     qc.print(std::cout);
 

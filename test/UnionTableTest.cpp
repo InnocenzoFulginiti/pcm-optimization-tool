@@ -14,32 +14,8 @@ TEST_CASE("Test combine Method") {
 
     table.combine(0, 1);
 
-    REQUIRE(table[0] == table[1]);
-    REQUIRE(table[1] != table[2]);
-}
-
-TEST_CASE("Test UnionTable::canActivate with example") {
-    //See if controls {1, 2, 7, 4} are correctly checked in union table with
-    //{1, 3, 4} and {2, 5, 7} as entangled groups
-
-    UnionTable ut(8);
-
-    ut[0] = TOP::T;
-    ut[6] = TOP::T;
-
-    QubitState state1(3);
-    state1.clear();
-    //Is able to activate:
-    state1[5] = 1;
-
-    QubitState state2(3);
-    state2.clear();
-    state2[5] = 1;
-
-    ut[1] = ut[3] = ut[4] = std::make_shared<QubitState>(state1);
-    ut[2] = ut[5] = ut[7] = std::make_shared<QubitState>(state2);
-
-    CHECK(ut.canActivate(std::vector<size_t>{1, 2, 7, 4}));
+    REQUIRE(table[0].getQubitState().get() == table[1].getQubitState().get());
+    REQUIRE(table[1].getQubitState().get() != table[2].getQubitState().get());
 }
 
 TEST_CASE("Test UnionTable::minimizeControls Example 1") {
@@ -77,6 +53,7 @@ TEST_CASE("Test UnionTable::minimizeControls Example 2") {
     (*qs)[5] = 1;
     (*qs)[8] = 1;
     (*qs)[24] = 1;
+    (*qs)[31] = 1;
 
     auto ret = ut.minimizeControls({0, 2, 3, 4});
     auto min = ret.second;
@@ -120,6 +97,30 @@ TEST_CASE("Test UnionTable::minimizeControls <=>") {
     CHECK((has3 || has4));
 }
 
+TEST_CASE("Test UnionTable::minimizeControls not able to activate") {
+    UnionTable ut(5);
+    //Entangle All
+    ut[4] = ut[3] = ut[2] = ut[1] = ut[0];
+
+    auto qs = ut[0].getQubitState();
+    qs->clear();
+    //4 => ~3 -> 4 and 3 can not activate, 3 => 2
+    (*qs)[0b00000] = 1;
+    (*qs)[0b00001] = 1;
+    (*qs)[0b00100] = 1;
+    (*qs)[0b00110] = 1;
+    (*qs)[0b01100] = 1;
+    (*qs)[0b10000] = 1;
+
+    qs->normalize();
+
+    auto [act, min] = ut.minimizeControls({0, 2, 3, 4});
+
+    CAPTURE(act);
+    CAPTURE(to_string(act));
+    REQUIRE(act==ActivationState::NEVER);
+}
+
 TEST_CASE("Test UnionTable::minimizeControls") {
     UnionTable ut(6);
     ut[0] = TOP::T;
@@ -140,4 +141,28 @@ TEST_CASE("Test UnionTable::minimizeControls") {
     auto res = ut.minimizeControls({0, 1, 2, 3, 4, 5});
 
     CHECK(res.second.size() == 4);
+}
+
+TEST_CASE("Test UnionTable SWAP") {
+    size_t size = static_cast<size_t>(GENERATE(1, 2, 10));
+    auto sut = generateRandomUnionTable(size);
+    CAPTURE(sut->to_string());
+
+    size_t i = static_cast<size_t>(GENERATE(take(3, random(0, 500)))) % size;
+    size_t j = static_cast<size_t>(GENERATE(take(3, random(0, 500)))) % size;
+
+    CAPTURE(i);
+    CAPTURE(j);
+
+    auto expected = sut->clone();
+
+    sut->swap(i, j);
+    INFO("After first swap:");
+    CAPTURE(sut->to_string());
+    sut->swap(i, j);
+
+    INFO("After second swap:");
+    CAPTURE(sut->to_string());
+
+    REQUIRE(*sut == *expected);
 }

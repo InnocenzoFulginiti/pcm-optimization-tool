@@ -2,3 +2,4 @@
 .idea/
 build/
 /cmake-build-debug-event-trace/
+/cmake-build-debug-coverage/

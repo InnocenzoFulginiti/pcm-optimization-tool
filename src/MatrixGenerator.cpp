@@ -20,10 +20,7 @@ std::array<Complex, 4> U1(double lambda) {
 }
 
 std::array<Complex, 4> getMatrix(const qc::Operation &op) {
-    auto params = op.getParameter();
-    double theta = params[2];
-    double phi = params[1];
-    double lambda = params[0];
+    std::vector<double> params = op.getParameter();
 
     switch (op.getType()) {
         case qc::None:
@@ -39,9 +36,9 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
         case qc::Z:
             return {1, 0, 0, -1};
         case qc::S:
-            return {1, 0, 0, Complex(0, 1)};
+            return U1(PI_2);
         case qc::Sdag:
-            return {1, 0, 0, Complex(0, -1)};
+            return U1(-PI_2);
         case qc::T:
             return {1, 0, 0, Complex(0, PI / 4).exp()};
         case qc::Tdag:
@@ -51,11 +48,11 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
         case qc::Vdag:
             return {Complex(0.5, -0.5), Complex(0.5, 0.5), Complex(0.5, 0.5), Complex(0.5, -0.5)};
         case qc::U3:
-            return U3(theta, phi, lambda);
+            return U3(params[0], params[1], params[2]);
         case qc::U2:
-            return U2(phi, lambda);
+            return U2(params[0], params[1]);
         case qc::Phase:
-            return U1(lambda);
+            return U1(params[0]);
         case qc::SX:
             return {Complex(0.5, 0.5), Complex(0.5, -0.5),
                     Complex(0.5, -0.5), Complex(0.5, 0.5)};
@@ -63,11 +60,13 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
             return {Complex(0.5, -0.5), Complex(0.5, 0.5),
                     Complex(0.5, 0.5), Complex(0.5, -0.5)};
         case qc::RX:
-            return U3(lambda, -PI_2, PI_2);
+            return U3(params[0], -PI_2, PI_2);
         case qc::RY:
-            return U3(lambda, 0, 0);
+            return U3(params[0], 0, 0);
         case qc::RZ:
-            return U1(lambda);
+            return U1(params[0]);
+        case qc::GPhase:
+            return {Complex(0, params[0]).exp(), 0, 0, Complex(0, params[0]).exp()};
         case qc::SWAP:
         case qc::iSWAP:
         case qc::Peres:
@@ -85,6 +84,14 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
         case qc::MultiATrue:
         case qc::MultiAFalse:
         case qc::OpCount:
+        case qc::DCX: //Double CNOT Gate
+        case qc::ECR:
+        case qc::RXX:
+        case qc::RYY:
+        case qc::RZZ:
+        case qc::RZX:
+        case qc::XXminusYY:
+        case qc::XXplusYY:
         default:
             std::cout << "Operation::getMatrix() not implemented for " << op.getName() << std::endl;
             break;

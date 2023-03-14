@@ -33,9 +33,29 @@ public:
         return this->value.imag();
     }
 
-    //Norm
+    /**
+     * Returns the magnitude
+     * @return
+     */
+
+    double abs() const {
+        return std::abs(value);
+    }
+
+    /**
+     * Returns the squared magnitude
+     * @return
+     */
     [[nodiscard]] double norm() const {
         return std::norm(value);
+    }
+
+    /**
+     * Returns the phase angle
+     * @return
+     */
+    [[nodiscard]] double arg() const {
+        return std::arg(value);
     }
 
     //Pass through operators from std::complex
@@ -89,7 +109,7 @@ public:
     }
 
     [[nodiscard]] bool isZero() const {
-        return std::abs(value) < 1e-10;
+        return this->abs() == 0.0;
     }
 
     [[nodiscard]] Complex exp() const {

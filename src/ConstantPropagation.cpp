@@ -4,6 +4,7 @@
 
 #include "../include/ConstantPropagation.hpp"
 #include "MatrixGenerator.hpp"
+#include "CircuitOptimizer.hpp"
 
 #define SHOW_DEBUG_MSG false
 
@@ -31,10 +32,14 @@ bool ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &tab
 
 std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagation::propagate(
         const qc::QuantumComputation &qc, size_t maxAmplitudes, const std::shared_ptr<UnionTable> &table) {
-    qc::QuantumComputation newQc = qc.clone();
+    qc::QuantumComputation copyQc = qc.clone();
+
+    //Use qfr to flatten compound gates
+    qc::CircuitOptimizer::flattenOperations(copyQc);
+    qc::QuantumComputation newQc = copyQc.clone();
     newQc.clear();
 
-    for (auto const &op: qc) {
+    for (auto const &op: copyQc) {
         if (op->getType() == qc::Barrier) {
             newQc.emplace_back(op->clone());
             continue;
@@ -81,9 +86,9 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
                     if ((*table)[i].isTop()) {
                         continue;
                     } else {
-                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0}); //TODO: x->getMatrix());
-                        (*table)[i].getQubitState()->applyGate(j, min.second, {0, 1, 1, 0}); //TODO: x->getMatrix());
-                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0}); //TODO: x->getMatrix());
+                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
+                        (*table)[i].getQubitState()->applyGate(j, min.second, {0, 1, 1, 0});
+                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
                         checkAmplitude(table, maxAmplitudes, i);
                     }
                     continue;
@@ -118,15 +123,11 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
         }
 
         if (op->getType() == qc::Measure) {
-            std::cout << "Constant Propagation does not support Measurement, is skipped! (qubits: ";
-
             auto nonUni = dynamic_cast<qc::NonUnitaryOperation *>(op.get());
 
             for (auto const t: nonUni->getTargets()) {
-                std::cout << t << ", ";
+                table->setTop(t);
             }
-
-            std::cout << ")" << std::endl;
 
             continue;
         }
@@ -145,14 +146,6 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
 
         //"Ordinary" Gate
         size_t target = op->getTargets().begin()[0];
-        if (table->isTop(target)) {
-            newQc.emplace_back(op->clone());
-            continue;
-        }
-
-        std::array<Complex, 4> G = getMatrix(*op);
-
-        //Get Target State
         std::vector<size_t> controls{};
         for (auto c: op->getControls())
             controls.emplace_back(c.qubit);
@@ -161,11 +154,17 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
         auto newOp = op->clone();
         newOp->setControls({});
 
+        std::array<Complex, 4> G = getMatrix(*op);
+
         switch (act) {
             case NEVER:
                 continue;
             case ALWAYS:
                 newQc.emplace_back(newOp);
+                if(table->isTop(target)) {
+                    continue;
+                }
+
                 (*table)[target].getQubitState()->applyGate(table->indexInState(target), G);
                 checkAmplitude(table, maxAmplitudes, target);
                 continue;
@@ -174,9 +173,16 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
                 for (auto c: min)
                     newOp->getControls().insert({static_cast<unsigned int>(c)});
 
+                newQc.emplace_back(newOp);
+
+                if(table->isTop(target)) {
+                    continue;
+                }
+
                 table->combine(target, min);
 
-                newQc.emplace_back(newOp);
+                checkAmplitudes(table, maxAmplitudes);
+
                 if (table->isTop(target)) {
                     continue;
                 } else {
@@ -197,11 +203,11 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
     return propagate(qc, maxAmplitudes, table);
 }
 
-qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) const {
+qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) {
     return optimize(qc, MAX_AMPLITUDES);
 }
 
-qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc, int maxAmplitudes) {
-    auto [optQc, table] = propagate(qc, static_cast<size_t>(maxAmplitudes));
+qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc, size_t maxAmplitudes) {
+    auto [optQc, table] = propagate(qc, maxAmplitudes);
     return optQc.clone();
 }
