@@ -210,7 +210,9 @@ TEST_CASE("Try file with Classic Controlled gates") {
     auto classicControls = "../test/circuits/QASMBench/small/shor_n5/shor_n5.qasm";
     qc::QuantumComputation qc(classicControls);
 
-    //TODO: Deal with classical controlled gates and test
+    std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> result;
+
+    CHECK_NOTHROW(result = ConstantPropagation::propagate(qc, 1024));
 }
 
 TEST_CASE("Try specific file") {

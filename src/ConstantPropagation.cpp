@@ -6,7 +6,6 @@
 #include "MatrixGenerator.hpp"
 #include "CircuitOptimizer.hpp"
 
-#define SHOW_DEBUG_MSG false
 
 bool ConstantPropagation::checkAmplitude(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes, size_t index) {
     if ((*table)[index].isQubitState()) {
@@ -40,14 +39,38 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
     newQc.clear();
 
     for (auto const &op: copyQc) {
-        if (op->getType() == qc::Barrier) {
+        //Gates that can be ignored
+        if (op->getType() == qc::Barrier ||
+            op->getType() == qc::Snapshot ||
+            op->getType() == qc::ShowProbabilities ||
+            op->getType() == qc::Teleportation ||
+            op->getType() == qc::OpCount
+                ) {
             newQc.emplace_back(op->clone());
             continue;
         }
 
-        if (op->isClassicControlledOperation()) {
-            std::cout << "Classical Controlled Operations not supported, is skipped!" << std::endl;
-            //TODO: Set Targets to T
+        //Currently unsupported gates -> Targets set to top
+        if (op->isClassicControlledOperation()
+            || op->getType() == qc::iSWAP
+            || op->getType() == qc::Peres
+            || op->getType() == qc::Peresdag
+            || op->getType() == qc::ATrue
+            || op->getType() == qc::AFalse
+            || op->getType() == qc::MultiATrue
+            || op->getType() == qc::MultiAFalse
+            || op->getType() == qc::DCX
+            || op->getType() == qc::ECR
+            || op->getType() == qc::RXX
+            || op->getType() == qc::RYY
+            || op->getType() == qc::RZZ
+            || op->getType() == qc::RZX
+            || op->getType() == qc::XXminusYY
+            || op->getType() == qc::XXplusYY
+                ) {
+            for (auto t: op->getTargets()) {
+                table->setTop(t);
+            }
             newQc.emplace_back(op->clone());
             continue;
         }
@@ -132,18 +155,6 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
             continue;
         }
 
-        if (SHOW_DEBUG_MSG) {
-            std::cout << table->to_string() << std::endl;
-            std::cout << "Applying Gate: " << op->getName();
-            std::cout << " with Target: " << op->getTargets().begin()[0];
-            std::cout << " and Controls: ";
-
-            for (auto c: op->getControls()) {
-                std::cout << c.qubit << " ";
-            }
-            std::cout << std::endl;
-        }
-
         //"Ordinary" Gate
         size_t target = op->getTargets().begin()[0];
         std::vector<size_t> controls{};
@@ -161,7 +172,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
                 continue;
             case ALWAYS:
                 newQc.emplace_back(newOp);
-                if(table->isTop(target)) {
+                if (table->isTop(target)) {
                     continue;
                 }
 
@@ -175,7 +186,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
 
                 newQc.emplace_back(newOp);
 
-                if(table->isTop(target)) {
+                if (table->isTop(target)) {
                     continue;
                 }
 
@@ -199,8 +210,20 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
 
 std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagation::propagate(
         const qc::QuantumComputation &qc, size_t maxAmplitudes) {
-    auto table = std::make_shared<UnionTable>(qc.getNqubits());
-    return propagate(qc, maxAmplitudes, table);
+    auto copyQc = qc.clone();
+    //Use qfr to try to replace classic controlled operations
+    qc::CircuitOptimizer::eliminateResets(copyQc);
+
+    try {
+        qc::CircuitOptimizer::deferMeasurements(copyQc);
+    } catch (qc::QFRException &e) {
+        //If Classic controlled gates target multiple bits, deferMeasurements will fail
+        //In this case, Classic controlled gates are skipped
+        //And their targets set to TOP
+    }
+
+    auto table = std::make_shared<UnionTable>(copyQc.getNqubits());
+    return propagate(copyQc, maxAmplitudes, table);
 }
 
 qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) {

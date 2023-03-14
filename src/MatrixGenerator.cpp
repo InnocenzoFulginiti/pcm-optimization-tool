@@ -1,6 +1,7 @@
 #include "MatrixGenerator.hpp"
 
 #include "Definitions_qcprop.hpp"
+#include "../extern/qfr/extern/dd_package/include/dd/GateMatrixDefinitions.hpp"
 
 std::array<Complex, 4> U3(double theta, double phi, double lambda) {
     return {
@@ -84,7 +85,7 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
         case qc::MultiATrue:
         case qc::MultiAFalse:
         case qc::OpCount:
-        case qc::DCX: //Double CNOT Gate
+        case qc::DCX:
         case qc::ECR:
         case qc::RXX:
         case qc::RYY:
@@ -100,3 +101,9 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
     return {0, 0, 0, 0};
 }
 
+std::array<std::array<Complex, 4>, 4> getTwoQubitMatrix(const qc::Operation& op) {
+    switch (op.getType()) {
+        default:
+            return {getMatrix(op), {0, 0, 0, 0}, {0, 0, 0, 0}, getMatrix(op)};
+    }
+}
