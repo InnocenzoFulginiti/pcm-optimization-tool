@@ -30,6 +30,8 @@ public:
         return this->quReg[index];
     }
 
+    bool operator==(const UnionTable &other) const;
+
     [[nodiscard]] size_t size() const {
         return this->nQubits;
     }
@@ -52,13 +54,7 @@ public:
 
     [[nodiscard]] std::vector<size_t> indexInState(const std::vector<size_t>& qubit) const;
 
-    [[nodiscard]] bool canActivate(size_t qubit) const;
-
-    [[nodiscard]] bool canActivate(std::vector<size_t> controls) const;
-
     [[nodiscard]] bool isTop(size_t index) const;
-
-    std::pair<size_t, size_t> countActivations(std::vector<size_t> controls);
 
     void setTop(size_t qubit);
 
@@ -76,8 +72,6 @@ public:
 private:
     size_t nQubits;
     QubitStateOrTop *quReg;
-
-    [[nodiscard]] std::vector<size_t> qubitsInSameState(size_t qubit) const;
 
     bool anyIsTop(std::vector<size_t> indices);
 

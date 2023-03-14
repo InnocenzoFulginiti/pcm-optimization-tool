@@ -7,7 +7,7 @@
 
 //TODO: Make this dynamic
 //E.g. vector<bool> or dynamic_bitset (boost)
-#define MAX_QUBITS 32
+#define MAX_QUBITS 400
 
 class BitSet {
 public:

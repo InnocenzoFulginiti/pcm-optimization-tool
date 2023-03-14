@@ -65,18 +65,18 @@ TEST_CASE("QubitState Merge Example") {
 
     //Make sure my solution is at least normed
     double sum = expected0.norm() + expected2.norm() + expected5.norm() + expected7.norm();
-    REQUIRE(Complex(sum) == Complex(1, 0));
+    REQUIRE(sum == Catch::Approx(1.0));
 
     //Check if the result is correct
     REQUIRE(result->size() == 4);
 
-    REQUIRE((*result)[BitSet(3, 0)] == expected0);
+    approx(expected0, (*result)[BitSet(3, 0)]);
 
-    REQUIRE((*result)[BitSet(3, 2)] == expected2);
+    approx(expected2, (*result)[BitSet(3, 2)]);
 
-    REQUIRE((*result)[BitSet(3, 5)] == expected5);
+    approx(expected5, (*result)[BitSet(3, 5)]);
 
-    REQUIRE((*result)[BitSet(3, 7)] == expected7);
+    approx(expected7, (*result)[BitSet(3, 7)]);
 }
 
 TEST_CASE("Test Gate Identities") {
@@ -92,22 +92,15 @@ TEST_CASE("Test Gate Identities") {
             Complex(SQRT_2_2, 0), Complex(-SQRT_2_2, 0)
     };
 
-    std::array<Complex, 4> S = {
-            Complex(1, 0), Complex(0, 0),
-            Complex(0, 0), Complex(0, 1)
-    };
-
-    std::array<Complex, 4> T = {
-            Complex(1, 0), Complex(0, 0),
-            Complex(0, 0), Complex(SQRT_2_2, SQRT_2_2)
-    };
+    std::array<Complex, 4> S = {1, 0, 0, Complex(0, 1)};
+    std::array<Complex, 4> T = {1, 0, 0, Complex(SQRT_2_2, SQRT_2_2)};
 
     size_t nQubits = static_cast<size_t>(GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
 
     auto qs = std::make_shared<QubitState>(nQubits);
     qs->clear();
 
-    for (size_t key = 0; key < (1 << (nQubits - 1)); key++) {
+    for (size_t key = 0; key < (static_cast<size_t>(1) << (nQubits - 1)); key++) {
         //Generate Amplitudes for 2/3 of keys
         if (rand() % 3 > 0) {
             (*qs)[BitSet(nQubits, key)] = Complex(rand() % 100, rand() % 100);
@@ -117,50 +110,79 @@ TEST_CASE("Test Gate Identities") {
     }
 
     qs->normalize();
-    auto result = std::make_shared<QubitState>(0);
 
     for (size_t target = 0; target < nQubits; target++) {
+        SECTION("I = I") {
+            auto qsI = qs->clone();
+            qsI->applyGate(target, I);
+            approx(qs, qsI);
+        }
 
-        //Use Relationships to verify
+        SECTION("XX = I") {
+            auto qsXX = qs->clone();
+            qsXX->applyGate(target, X);
+            qsXX->applyGate(target, X);
+            approx(qs, qsXX);
+        }
 
-        //I = I
-        result = qs->clone();
-        result->applyGate(target, I);
-        CHECK_MESSAGE(qs->operator==(*result),
-                      "I = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
+        SECTION("HH = I") {
+            auto qsHH = qs->clone();
+            qsHH->applyGate(target, H);
+            qsHH->applyGate(target, H);
+            approx(qs, qsHH);
+        }
 
-        //XX = I
-        result = qs->clone();
-        result->applyGate(target, X);
-        result->applyGate(target, X);
-        CHECK_MESSAGE(qs->operator==(*result),
-                      "XX = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
+        SECTION("ZZ = I") {
+            auto qsZZ = qs->clone();
+            qsZZ->applyGate(target, Z);
+            qsZZ->applyGate(target, Z);
+            approx(qs, qsZZ);
+        }
 
-        //HH = I
-        result = qs->clone();
-        result->applyGate(target, H);
-        result->applyGate(target, H);
-        CHECK_MESSAGE(qs->operator==(*result),
-                      "HH = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
+        SECTION("YY = I") {
+            auto qsYY = qs->clone();
+            qsYY->applyGate(target, Y);
+            qsYY->applyGate(target, Y);
+            approx(qs, qsYY);
+        }
 
-        //ZZ = I
-        result = qs->clone();
-        result->applyGate(target, Z);
-        result->applyGate(target, Z);
-        CHECK_MESSAGE(qs->operator==(*result),
-                      "ZZ = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
+        SECTION("TT = S") {
+            auto qsTT = qs->clone();
+            qsTT->applyGate(target, T);
+            qsTT->applyGate(target, T);
+            auto qsS = qs->clone();
+            qsS->applyGate(target, S);
+            approx(qsS, qsTT);
+        }
 
-        //YY = I
-        result = qs->clone();
-        result->applyGate(target, Y);
-        result->applyGate(target, Y);
-        CHECK_MESSAGE(qs->operator==(*result),
-                      "YY = I Failed, nQubits: " + std::to_string(nQubits) + ", target: " + std::to_string(target) +
-                      ", qs: " + qs->to_string() + ", result: " + result->to_string());
+        SECTION("SS = Z") {
+            auto qsSS = qs->clone();
+            qsSS->applyGate(target, S);
+            qsSS->applyGate(target, S);
+            auto qsZ = qs->clone();
+            qsZ->applyGate(target, Z);
+            approx(qsZ, qsSS);
+        }
+
+        SECTION("HXH = Z") {
+            auto qsHXH = qs->clone();
+            qsHXH->applyGate(target, H);
+            qsHXH->applyGate(target, X);
+            qsHXH->applyGate(target, H);
+            auto qsZ = qs->clone();
+            qsZ->applyGate(target, Z);
+            approx(qsZ, qsHXH);
+        }
+
+        SECTION("HZH = X") {
+            auto qsHZH = qs->clone();
+            qsHZH->applyGate(target, H);
+            qsHZH->applyGate(target, Z);
+            qsHZH->applyGate(target, H);
+            auto qsX = qs->clone();
+            qsX->applyGate(target, X);
+            approx(qsX, qsHZH);
+        }
     }
 }
 

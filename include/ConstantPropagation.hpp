@@ -6,19 +6,20 @@
 #define QCPROP_CONSTANTPROPAGATION_HPP
 
 
-#include "CircuitOptimization.hpp"
+#include "ConstantPropagation.hpp"
+#include "QuantumComputation.hpp"
 #include "UnionTable.hpp"
 #include "ActivationState.hpp"
 
 #define MAX_AMPLITUDES 1024
 
-class ConstantPropagation : public CircuitOptimization {
+class ConstantPropagation {
 public:
-    [[nodiscard]] qc::QuantumComputation optimize(qc::QuantumComputation& qc) const override;
-    static qc::QuantumComputation optimize(qc::QuantumComputation &qc, int maxAmplitudes) ;
+    static qc::QuantumComputation optimize(qc::QuantumComputation& qc);
+    static qc::QuantumComputation optimize(qc::QuantumComputation &qc, size_t maxAmplitudes) ;
 
     [[nodiscard]] static std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>>
-    propagate(const qc::QuantumComputation &qc, size_t maxAmplitudes) ;
+    propagate(const qc::QuantumComputation &qc, size_t maxAmplitudes);
 
     static std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>>
     propagate(const qc::QuantumComputation &qc, size_t maxAmplitudes, const std::shared_ptr<UnionTable> &table);
