@@ -22,7 +22,7 @@ public:
 
             std::cout << "Test Started at: " << buf << std::endl;
             std::cout
-                    << "fileName,parseTime,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
+                    << "fileName,parseTime,nQubits,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
                     << std::endl;
         }
     }
@@ -34,8 +34,10 @@ namespace c = std::chrono;
 using tp = std::chrono::steady_clock::time_point;
 
 //Took about 1:40h in my Laptop
+//Run this with ./build/tests [!benchmark] --reporter console
+//to copy std::cout to csv file
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    fs::path file = GENERATE(take(240, qasmFile(QASMFileGenerator::ALL)));
+    fs::path file = GENERATE(take(250, qasmFile(QASMFileGenerator::ALL)));
 
     tp start, end;
     long long dur;
@@ -49,8 +51,8 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     end = c::steady_clock::now();
     dur = c::duration_cast<c::microseconds>(end - start).count();
 
-    //parseTime,nOpsStart
-    std::cout << "," << dur << "," << qc.getNops();
+    //parseTime,nQubits,nOpsStart
+    std::cout << "," << dur << "," << qc.getNqubits() << "," << qc.getNops();
     std::cout.flush();
 
     start = c::steady_clock::now();
