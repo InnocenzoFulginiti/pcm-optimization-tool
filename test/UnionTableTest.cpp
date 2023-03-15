@@ -233,3 +233,92 @@ TEST_CASE("Test RZZ gate") {
             {0b0001, Complex(-0.5, 0.5)}
     });
 }
+
+TEST_CASE("Test RXX, RYY, RZZ identities") {
+    size_t UT_SIZE = 2;
+    auto sut = generateRandomUnionTable(UT_SIZE);
+
+
+    unsigned int t1 = 0;
+    unsigned int t2 = 1;
+
+    auto sut_combined = sut->clone();
+    sut_combined->combine(t1, t2);
+
+    SECTION("RXX(0) = I") {
+        qc::QuantumComputation rxxI(2);
+        rxxI.rxx(t1, t2, 0);
+        auto copy = sut->clone();
+        auto [qc, result] = ConstantPropagation::propagate(rxxI, 1 << UT_SIZE, copy);
+
+        approxUnionTable(sut_combined, result);
+    }
+
+    SECTION("RXX(4*pi) = I") {
+        qc::QuantumComputation rxxI(2);
+        rxxI.rxx(t1, t2, 4 * PI);
+        auto copy = sut->clone();
+        auto [qc, result] = ConstantPropagation::propagate(rxxI, 1 << UT_SIZE, copy);
+
+        approxUnionTable(sut_combined, result);
+    }
+
+    SECTION("RZZ(0) = I") {
+        qc::QuantumComputation rzzI(2);
+        rzzI.rzz(t1, t2, 0);
+        auto copy = sut->clone();
+        auto [qc, result] = ConstantPropagation::propagate(rzzI, 1 << UT_SIZE, copy);
+
+        approxUnionTable(sut_combined, result);
+    }
+
+    SECTION("RZZ(4*pi) = I") {
+        qc::QuantumComputation rzzI(2);
+        rzzI.rzz(t1, t2, 4 * PI);
+        auto copy = sut->clone();
+        auto [qc, result] = ConstantPropagation::propagate(rzzI, 1 << UT_SIZE, copy);
+
+        approxUnionTable(sut_combined, result);
+    }
+}
+
+TEST_CASE("Test RXX, RYY") {
+    size_t size_ut = 4;
+    qc::QuantumComputation I(size_ut);
+    //Entangle qubits
+    I.h(1);
+    I.h(2);
+    I.x(0, {1});
+    I.x(3, {2});
+    //Something that should cancel out if done correctly
+    I.rzz(1, 2, PI);
+    I.rxx(1, 2, PI);
+    I.rzz(1, 2, PI);
+    I.rxx(1, 2, PI);
+    I.rzz(1, 2, PI);
+    I.rxx(1, 2, PI);
+    I.rzz(1, 2, PI);
+    I.rxx(1, 2, PI);
+
+    I.x(0, {1});
+    I.x(3, {2});
+
+    I.h(1);
+    I.h(2);
+
+    auto startUT = generateRandomUnionTable(size_ut);
+
+    CAPTURE(startUT->to_string());
+
+    auto [qc, actual] = ConstantPropagation::propagate(I, 1 << size_ut, startUT);
+
+    for (size_t i = 1; i < size_ut; i++) {
+        startUT->combine(0, i);
+    }
+
+    INFO("Combined:");
+    CAPTURE(startUT->to_string());
+    CAPTURE(actual->to_string());
+
+    approxUnionTable(startUT, actual);
+}

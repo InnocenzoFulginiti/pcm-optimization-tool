@@ -27,7 +27,7 @@ void approxQubitState(const std::shared_ptr<QubitState> &expected, const std::sh
     }
 }
 
-std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, long long seed) {
+std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, double chanceForTop, long long seed) {
     if (nQubits == 0)
         return std::make_shared<UnionTable>(0);
 
@@ -53,7 +53,8 @@ std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, long long s
     //Counter so seed is different for each state
     int i = 0;
     for (const std::vector<size_t> &partition: partitioning) {
-        QubitStateOrTop state = generateRandomStateOrTop(partition.size(), 0.8 / static_cast<double>(partition.size()),
+        QubitStateOrTop state = generateRandomStateOrTop(partition.size(),
+                                                         chanceForTop / static_cast<double>(partition.size()),
                                                          seed + i++);
         for (const size_t qubit: partition) {
             (*table)[qubit] = state;

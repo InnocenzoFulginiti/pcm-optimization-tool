@@ -35,7 +35,8 @@ approxUnionTable(const std::shared_ptr<UnionTable> &expected, const std::shared_
 QubitStateOrTop
 generateRandomStateOrTop(size_t nQubits, double chanceForTop = 0.33, long long seed = std::time(nullptr));
 
-std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, long long seed = std::time(nullptr));
+std::shared_ptr<UnionTable>
+generateRandomUnionTable(size_t nQubits, double topChance = 0.8, long long seed = std::time(nullptr));
 
 void compareUnitTableToState(const std::shared_ptr<UnionTable> &ut,
                              const std::vector<std::pair<size_t, Complex>> &expected);
