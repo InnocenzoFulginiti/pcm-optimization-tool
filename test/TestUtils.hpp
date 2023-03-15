@@ -8,6 +8,7 @@
 
 #define CIRCUITS_PATH "../test/circuits/"
 #define QASM_Bench_Path CIRCUITS_PATH "QASMBench"
+
 #include <filesystem>
 #include <string>
 
@@ -19,14 +20,25 @@
 #include "MatrixGenerator.hpp"
 #include "CircuitOptimizer.hpp"
 
-#define CHECK_MESSAGE(cond, msg) do { INFO(msg); CHECK(cond); } while((void)0, 0)
+void approx(const Complex &expected, const Complex &actual, double epsilon = 1e-10);
 
-void approx(const Complex& expected, const Complex& actual, double epsilon = 1e-10);
-void approx(const std::shared_ptr<QubitState>& expected, const std::shared_ptr<QubitState>& actual, double epsilon = 1e-10);
+void
+approxQubitState(const std::shared_ptr<QubitState> &expected, const std::shared_ptr<QubitState> &actual,
+                 double epsilon = 1e-10);
 
-std::shared_ptr<QubitState> generateRandomState(size_t nQubits, long long seed = std::time(nullptr));
-QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop = 0.33, long long seed = std::time(nullptr));
+void
+approxUnionTable(const std::shared_ptr<UnionTable> &expected, const std::shared_ptr<UnionTable> &actual,
+                 double epsilon = 1e-10);
+
+[[maybe_unused]] std::shared_ptr<QubitState> generateRandomState(size_t nQubits, long long seed = std::time(nullptr));
+
+QubitStateOrTop
+generateRandomStateOrTop(size_t nQubits, double chanceForTop = 0.33, long long seed = std::time(nullptr));
+
 std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, long long seed = std::time(nullptr));
+
+void compareUnitTableToState(const std::shared_ptr<UnionTable> &ut,
+                             const std::vector<std::pair<size_t, Complex>> &expected);
 
 namespace fs = std::filesystem;
 
@@ -59,9 +71,11 @@ Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::SIZE s
 
 class CircuitMetrics {
 public:
-    explicit CircuitMetrics(const fs::path& pathOfQasmFile);
-    [[nodiscard]] std::string csvLine() const;
-    static std::string csvHeader();
+    explicit CircuitMetrics(const fs::path &pathOfQasmFile);
+
+    [[maybe_unused]] [[nodiscard]] std::string csvLine() const;
+
+    [[maybe_unused]] static std::string csvHeader();
 
 private:
     std::string fileName;

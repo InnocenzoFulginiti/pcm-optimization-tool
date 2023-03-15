@@ -115,35 +115,35 @@ TEST_CASE("Test Gate Identities") {
         SECTION("I = I") {
             auto qsI = qs->clone();
             qsI->applyGate(target, I);
-            approx(qs, qsI);
+            approxQubitState(qs, qsI);
         }
 
         SECTION("XX = I") {
             auto qsXX = qs->clone();
             qsXX->applyGate(target, X);
             qsXX->applyGate(target, X);
-            approx(qs, qsXX);
+            approxQubitState(qs, qsXX);
         }
 
         SECTION("HH = I") {
             auto qsHH = qs->clone();
             qsHH->applyGate(target, H);
             qsHH->applyGate(target, H);
-            approx(qs, qsHH);
+            approxQubitState(qs, qsHH);
         }
 
         SECTION("ZZ = I") {
             auto qsZZ = qs->clone();
             qsZZ->applyGate(target, Z);
             qsZZ->applyGate(target, Z);
-            approx(qs, qsZZ);
+            approxQubitState(qs, qsZZ);
         }
 
         SECTION("YY = I") {
             auto qsYY = qs->clone();
             qsYY->applyGate(target, Y);
             qsYY->applyGate(target, Y);
-            approx(qs, qsYY);
+            approxQubitState(qs, qsYY);
         }
 
         SECTION("TT = S") {
@@ -152,7 +152,7 @@ TEST_CASE("Test Gate Identities") {
             qsTT->applyGate(target, T);
             auto qsS = qs->clone();
             qsS->applyGate(target, S);
-            approx(qsS, qsTT);
+            approxQubitState(qsS, qsTT);
         }
 
         SECTION("SS = Z") {
@@ -161,7 +161,7 @@ TEST_CASE("Test Gate Identities") {
             qsSS->applyGate(target, S);
             auto qsZ = qs->clone();
             qsZ->applyGate(target, Z);
-            approx(qsZ, qsSS);
+            approxQubitState(qsZ, qsSS);
         }
 
         SECTION("HXH = Z") {
@@ -171,7 +171,7 @@ TEST_CASE("Test Gate Identities") {
             qsHXH->applyGate(target, H);
             auto qsZ = qs->clone();
             qsZ->applyGate(target, Z);
-            approx(qsZ, qsHXH);
+            approxQubitState(qsZ, qsHXH);
         }
 
         SECTION("HZH = X") {
@@ -181,7 +181,7 @@ TEST_CASE("Test Gate Identities") {
             qsHZH->applyGate(target, H);
             auto qsX = qs->clone();
             qsX->applyGate(target, X);
-            approx(qsX, qsHZH);
+            approxQubitState(qsX, qsHZH);
         }
     }
 }

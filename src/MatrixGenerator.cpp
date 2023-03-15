@@ -1,7 +1,6 @@
 #include "MatrixGenerator.hpp"
 
 #include "Definitions_qcprop.hpp"
-#include "../extern/qfr/extern/dd_package/include/dd/GateMatrixDefinitions.hpp"
 
 std::array<Complex, 4> U3(double theta, double phi, double lambda) {
     return {
@@ -101,9 +100,125 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
     return {0, 0, 0, 0};
 }
 
-std::array<std::array<Complex, 4>, 4> getTwoQubitMatrix(const qc::Operation& op) {
+std::array<std::array<Complex, 4>, 4> getTwoQubitMatrix(const qc::Operation &op) {
+    double t;
+    double b;
     switch (op.getType()) {
+        case qc::iSWAP:
+            return {{
+                            {1, 0, 0, 0},
+                            {0, 0, Complex(0, 1), 0},
+                            {0, Complex(0, 1), 0, 0},
+                            {0, 0, 0, 1}
+                    }};
+        case qc::ECR:
+            return {{
+                            {1, 0, SQRT_2_2,},
+                            {SQRT_2_2, 0, Complex(0, -SQRT_2_2), 0},
+                            {0, Complex(0, SQRT_2_2), 0, SQRT_2_2},
+                            {Complex(0, -SQRT_2_2), 0, SQRT_2_2, 0}
+                    }};
+        case qc::DCX:
+            return {{
+                            {1, 0, 0, 0},
+                            {0, 0, 0, 1},
+                            {0, 1, 0, 0},
+                            {0, 0, 1, 0}
+                    }};
+        case qc::RXX:
+            t = op.getParameter()[0] / 2.0;
+            return {{
+                            {cos(t), 0, 0, Complex(0, -sin(t))},
+                            {0, cos(t), Complex(0, -sin(t)), 0},
+                            {0, Complex(0, -sin(t)), cos(t), 0},
+                            {Complex(0, -sin(t)), 0, 0, cos(t)}
+                    }};
+        case qc::RYY:
+            t = op.getParameter()[0] / 2.0;
+            return {{
+                            {cos(t), 0, 0, Complex(0, sin(t))},
+                            {0, cos(t), Complex(0, -sin(t)), 0},
+                            {0, Complex(0, -sin(t)), cos(t), 0},
+                            {Complex(0, sin(t)), 0, 0, cos(t)}
+                    }};
+        case qc::RZZ:
+            t = op.getParameter()[0] / 2.0;
+            return {{
+                            {Complex(0, -t).exp(), 0, 0, 0},
+                            {0, Complex(0, t).exp(), 0, 0},
+                            {0, 0, Complex(0, t).exp(), 0},
+                            {0, 0, 0, Complex(0, -t).exp()}
+                    }};
+        case qc::RZX:
+            t = op.getParameter()[0] / 2.0;
+            return {{
+                            {cos(t), 0, Complex(0, -sin(t)), 0},
+                            {0, cos(t), 0, Complex(0, sin(t))},
+                            {Complex(0, -sin(t)), 0, cos(t), 0},
+                            {0, Complex(0, sin(t)), 0, cos(t)}
+                    }};
+        case qc::XXplusYY:
+            t = op.getParameter()[0] / 2.0;
+            b = op.getParameter()[1];
+            return {{
+                            {1, 0, 0, 0},
+                            {0, cos(t), Complex(0, -sin(t)) * Complex(0, b).exp(), 0},
+                            {0, Complex(0, -sin(t)) * Complex(0, -b).exp(), cos(t), 0},
+                            {0, 0, 0, 1}
+                    }};
+        case qc::XXminusYY:
+            t = op.getParameter()[0] / 2.0;
+            b = op.getParameter()[1];
+            return {{
+                            {cos(t), 0, 0, Complex(0, -sin(t)) * Complex(0, -b).exp()},
+                            {0, 1, 0, 0},
+                            {0, 0, 1, 0},
+                            {Complex(0, -sin(t)) * Complex(0, b).exp(), 0, 0, cos(t)}
+                    }};
+        case qc::None:
+        case qc::GPhase:
+        case qc::I:
+        case qc::H:
+        case qc::X:
+        case qc::Y:
+        case qc::Z:
+        case qc::S:
+        case qc::Sdag:
+        case qc::T:
+        case qc::Tdag:
+        case qc::V:
+        case qc::Vdag:
+        case qc::U3:
+        case qc::U2:
+        case qc::Phase:
+        case qc::SX:
+        case qc::SXdag:
+        case qc::RX:
+        case qc::RY:
+        case qc::RZ:
+        case qc::SWAP:
+        case qc::Peres:
+        case qc::Peresdag:
+        case qc::Compound:
+        case qc::Measure:
+        case qc::Reset:
+        case qc::Snapshot:
+        case qc::ShowProbabilities:
+        case qc::Barrier:
+        case qc::Teleportation:
+        case qc::ClassicControlled:
+        case qc::ATrue:
+        case qc::AFalse:
+        case qc::MultiATrue:
+        case qc::MultiAFalse:
+        case qc::OpCount:
         default:
-            return {getMatrix(op), {0, 0, 0, 0}, {0, 0, 0, 0}, getMatrix(op)};
-    }
+            std::cout << "Operation::getTwoQubitMatrix() not implemented for " << op.getName() << std::endl;
+            return {{
+                            {0, 0, 0, 0},
+                            {0, 0, 0, 0},
+                            {0, 0, 0, 0},
+                            {0, 0, 0, 0}
+                    }};
+    };
 }

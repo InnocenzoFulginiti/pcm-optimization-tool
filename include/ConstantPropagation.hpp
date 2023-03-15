@@ -26,7 +26,7 @@ public:
 private:
     static bool checkAmplitude(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes, size_t index);
 
-    static bool checkAmplitudes(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes);
+    [[maybe_unused]] static bool checkAmplitudes(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes);
 };
 
 #endif //QCPROP_CONSTANTPROPAGATION_HPP

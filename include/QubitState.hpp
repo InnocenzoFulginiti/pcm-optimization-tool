@@ -98,13 +98,7 @@ public:
 
     void normalize();
 
-    [[nodiscard]] bool canActivate(size_t index) const;
-
-    [[nodiscard]] bool canActivate(const std::vector<size_t> &indices) const;
-
     [[nodiscard]] bool alwaysActivated(const std::vector<size_t> &indices) const;
-
-    std::pair<size_t, size_t> countActivations(const std::vector<size_t> &indices);
 
     void applyGate(size_t target,
                    std::array<Complex, 4> matrix);
@@ -112,6 +106,10 @@ public:
     void applyGate(size_t target,
                    const std::vector<size_t> &controls,
                    std::array<Complex, 4> matrix);
+
+    void applyTwoQubitGate(size_t t1, size_t t2, std::array<std::array<Complex, 4>, 4> mat);
+
+    void applyTwoQubitGate(size_t, size_t, const std::vector<size_t> &, std::array<std::array<Complex, 4>, 4>);
 
     void reorderIndex(size_t oldI, size_t newI);
 
@@ -121,7 +119,8 @@ public:
 
     void removeBit(size_t q);
 
-    static std::shared_ptr<QubitState> fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits);
+    static std::shared_ptr<QubitState>
+    fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits);
 
 private:
     size_t nQubits;
@@ -149,7 +148,7 @@ public:
     QubitStateOrTop &operator=(const QubitStateOrTop &qubitStateOrTop) = default;
 
     QubitStateOrTop &operator=(const std::shared_ptr<QubitStateOrTop> &qubitState) {
-        if(qubitState->isTop()) {
+        if (qubitState->isTop()) {
             this->variant = TOP::T;
         } else {
             this->variant = qubitState->getQubitState()->clone();
@@ -168,9 +167,9 @@ public:
     }
 
     bool operator==(const QubitStateOrTop &rhs) const {
-        if(this->isTop() && rhs.isTop()) {
+        if (this->isTop() && rhs.isTop()) {
             return true;
-        } else if(this->isTop() || rhs.isTop()) {
+        } else if (this->isTop() || rhs.isTop()) {
             return false;
         } else {
             return (*this->getQubitState()) == (*rhs.getQubitState());

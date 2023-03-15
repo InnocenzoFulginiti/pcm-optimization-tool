@@ -8,5 +8,6 @@
 
 std::array<Complex, 4> getMatrix(const qc::Operation &op);
 
+std::array<std::array<Complex, 4>, 4> getTwoQubitMatrix(const qc::Operation &op);
 
 #endif //QCPROP_MATRIXGENERATOR_HPP

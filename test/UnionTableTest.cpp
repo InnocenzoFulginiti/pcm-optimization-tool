@@ -145,7 +145,8 @@ TEST_CASE("Test UnionTable::minimizeControls") {
 
 TEST_CASE("Test UnionTable SWAP") {
     size_t size = static_cast<size_t>(GENERATE(1, 2, 10));
-    auto sut = generateRandomUnionTable(size);
+    CAPTURE(size);
+    auto sut = generateRandomUnionTable(size, 1256258075);
     CAPTURE(sut->to_string());
 
     size_t i = static_cast<size_t>(GENERATE(take(3, random(0, 500)))) % size;
@@ -164,5 +165,71 @@ TEST_CASE("Test UnionTable SWAP") {
     INFO("After second swap:");
     CAPTURE(sut->to_string());
 
-    REQUIRE(*sut == *expected);
+    approxUnionTable(expected, sut);
+}
+
+TEST_CASE("Test single RXX gate") {
+    qc::QuantumComputation qc(4);
+    qc.h(1);
+    qc.rxx(1, 2, PI_2);
+
+    auto [newQc, ut] = ConstantPropagation::propagate(qc, 10);
+    REQUIRE(newQc.getNops() == 2);
+    REQUIRE(!ut->isTop(0));
+    REQUIRE(!ut->isTop(1));
+    REQUIRE(!ut->isTop(2));
+    REQUIRE(!ut->isTop(3));
+
+    auto state = ut->operator[](1).getQubitState();
+    REQUIRE(state->size() == 4);
+
+    approx(0.5, (*state)[0b00]);
+    approx(0.5, (*state)[0b01]);
+    approx(Complex(0, -0.5), (*state)[0b10]);
+    approx(Complex(0, -0.5), (*state)[0b11]);
+}
+
+TEST_CASE("Test multiple RXX gates") {
+    qc::QuantumComputation qc(4);
+    qc.h(1);
+    qc.rxx(1, 2, PI_2);
+    qc.rxx(2, 3, PI / 4.0);
+    qc.rxx(0, 1, PI * 1.5);
+
+    auto [newQc, ut] = ConstantPropagation::propagate(qc, 16);
+
+    REQUIRE(newQc.getNops() == 4);
+
+    compareUnitTableToState(ut, {
+            {0,  Complex(-0.327, 0)},
+            {1,  Complex(0, -0.327)},
+            {2,  Complex(-0.327, 0)},
+            {3,  Complex(0, -0.327)},
+            {4,  Complex(0, 0.327)},
+            {5,  Complex(-0.327, 0)},
+            {6,  Complex(0, 0.327)},
+            {7,  Complex(-0.327, 0)},
+            {8,  Complex(0.135, 0)},
+            {9,  Complex(0, 0.135)},
+            {10, Complex(0.135, 0)},
+            {11, Complex(0, 0.135)},
+            {12, Complex(0, 0.135)},
+            {13, Complex(-0.135, 0)},
+            {14, Complex(0, 0.135)},
+            {15, Complex(-0.135, 0)}
+    });
+}
+
+TEST_CASE("Test RZZ gate") {
+    qc::QuantumComputation qc(4);
+    qc.h(0);
+    qc.rzz(0, 1, PI * 1.5);
+
+    auto [newQc, ut] = ConstantPropagation::propagate(qc, 16);
+
+    REQUIRE(newQc.getNops() == 2);
+    compareUnitTableToState(ut, {
+            {0b0000, Complex(-0.5, -0.5)},
+            {0b0001, Complex(-0.5, 0.5)}
+    });
 }

@@ -15,8 +15,13 @@ public:
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "google-explicit-constructor"
+
     BitSet(int value) : size(MAX_QUBITS), bits(static_cast<size_t>(value)) {}
+
+    BitSet(unsigned int value) : size(MAX_QUBITS), bits(static_cast<size_t>(value)) {}
+
     BitSet(size_t value) : size(MAX_QUBITS), bits(value) {}
+
 #pragma clang diagnostic pop
 
     BitSet(size_t _size, size_t _value) : size(_size), bits(_value) {};
