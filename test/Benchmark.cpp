@@ -18,7 +18,7 @@ public:
 
             char buf[80];
             std::setlocale(LC_TIME, "C");
-            std::strftime(buf, 80, "%T", &now_tm);
+            std::strftime(buf, 80, "%H:%M:%S", &now_tm);
 
             std::cout << "Test Started at: " << buf << std::endl;
             std::cout
@@ -38,10 +38,11 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     fs::path file = GENERATE(take(240, qasmFile(QASMFileGenerator::ALL)));
 
     tp start, end;
-    long dur;
+    long long dur;
 
     //fileName
     std::cout << file.string();
+    std::cout.flush();
 
     start = c::steady_clock::now();
     qc::QuantumComputation qc(file.string());
