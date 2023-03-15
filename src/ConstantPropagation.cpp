@@ -165,16 +165,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
         newQc.emplace_back(newOp);
 
         //Two qubit gates
-        if (op->getType() == qc::iSWAP
-            || op->getType() == qc::ECR
-            || op->getType() == qc::DCX
-            || op->getType() == qc::RXX
-            || op->getType() == qc::RYY
-            || op->getType() == qc::RZZ
-            || op->getType() == qc::RZX
-            || op->getType() == qc::XXminusYY
-            || op->getType() == qc::XXplusYY
-                ) {
+        if (qc::isTwoQubitGate(op->getType())) {
             size_t t1 = op->getTargets()[0];
             size_t t2 = op->getTargets()[1];
             auto twoQubitMat = getTwoQubitMatrix(*op);
@@ -196,7 +187,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
                                                             table->indexInState(min),
                                                             twoQubitMat);
         } else {
-            //"Ordinary" Single Qubit Gate
+            //Single Qubit Gate
             size_t target = op->getTargets().begin()[0];
             auto singleQubitMat = getMatrix(*op);
 
