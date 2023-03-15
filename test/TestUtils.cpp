@@ -27,13 +27,14 @@ void approxQubitState(const std::shared_ptr<QubitState> &expected, const std::sh
     }
 }
 
-std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, double chanceForTop, long long seed) {
+std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, double chanceForTop, unsigned int seed) {
     if (nQubits == 0)
         return std::make_shared<UnionTable>(0);
 
     UNSCOPED_INFO("Random UnionTable seed: " << seed);
 
-    std::srand(static_cast<unsigned int>(seed));
+    std::default_random_engine ran(seed);
+    std::uniform_real_distribution<double> dis(0, 1.0);
 
     std::shared_ptr<UnionTable> table = std::make_shared<UnionTable>(nQubits);
 
@@ -42,16 +43,16 @@ std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, double chan
 
     for (size_t i = 0; i < nQubits; i++) {
         size_t j = 0;
-        double r = (rand() % 1000) / 1000.0;
+        double r = dis(ran);
         while (r > 0.5 && j < partitioning.size() - 1) {
             j++;
-            r = (rand() % 1000) / 1000.0;
+            r = dis(ran);
         }
         partitioning[j].push_back(i);
     }
 
     //Counter so seed is different for each state
-    int i = 0;
+    unsigned int i = 0;
     for (const std::vector<size_t> &partition: partitioning) {
         QubitStateOrTop state = generateRandomStateOrTop(partition.size(),
                                                          chanceForTop / static_cast<double>(partition.size()),
@@ -64,17 +65,17 @@ std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, double chan
     return table;
 }
 
-std::shared_ptr<QubitState> generateRandomState(size_t nQubits, long long seed) {
+[[maybe_unused]] std::shared_ptr<QubitState> generateRandomState(size_t nQubits, unsigned int seed) {
     return generateRandomStateOrTop(nQubits, 0.0, seed).getQubitState();
 }
 
-QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop, long long seed) {
+QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop, unsigned int seed) {
     if (nQubits == 0)
         return std::make_shared<QubitState>(0);
 
-    std::srand(static_cast<unsigned int>(seed));
-
-    double r = rand() % 1000 / 1000.0;
+    std::default_random_engine rand(seed);
+    std::uniform_real_distribution<double> dis(0.0, 1.0);
+    double r = dis(rand);
     if (r < chanceForTop)
         return TOP::T;
 
@@ -83,10 +84,10 @@ QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop, lo
 
     for (size_t key = 0; key < (static_cast<size_t>(1) << nQubits); key++) {
         //Only values for 2/3 of the keys
-        r = rand() % 1000 / 1000.0;
+        r = dis(rand);
         if (r < 2.0 / 3.0 || state->size() == 0) {
-            double real = (rand() % 1000 / 5000.0) + 1.0;
-            double imag = (rand() % 1000 / 5000.0) + 1.0;
+            double real = dis(rand) * 2.0 - 1.0;
+            double imag = dis(rand) * 2.0 - 1.0;
             (*state)[BitSet(nQubits, key)] = Complex(real, imag);
         }
     }
@@ -281,7 +282,7 @@ CircuitMetrics::CircuitMetrics(const fs::path &pathOfQasmFile) {
            "Liveness Supermarq";
 }
 
-std::string CircuitMetrics::csvLine() const {
+[[maybe_unused]] std::string CircuitMetrics::csvLine() const {
     return fileName + ","
            + std::to_string(qubitCount) + ","
            + std::to_string(circuitDepth) + ","
