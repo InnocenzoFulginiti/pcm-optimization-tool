@@ -22,7 +22,7 @@ public:
 
             std::cout << "Test Started at: " << buf << std::endl;
             std::cout
-                    << "fileName,parseTime,nQubits,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
+                    << "fileName,maxNAmpls,parseTime,nQubits,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
                     << std::endl;
         }
     }
@@ -38,12 +38,14 @@ using tp = std::chrono::steady_clock::time_point;
 //to copy std::cout to csv file
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     fs::path file = GENERATE(take(250, qasmFile(QASMFileGenerator::ALL)));
+    size_t maxNAmpls = 1024;
+    size_t eps = 0.0;
 
     tp start, end;
     long long dur;
 
-    //fileName
-    std::cout << file.string();
+    //fileName,maxNAmpls,epsolon
+    std::cout << file.string() << "," << maxNAmpls << "," << eps;
     std::cout.flush();
 
     start = c::steady_clock::now();
@@ -72,7 +74,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::cout.flush();
 
     start = c::steady_clock::now();
-    auto [newQC, ut] = ConstantPropagation::propagate(qc, 1024);
+    auto [newQC, ut] = ConstantPropagation::propagate(qc, maxNAmpls);
     end = c::steady_clock::now();
     dur = c::duration_cast<c::microseconds>(end - start).count();
 
