@@ -21,7 +21,7 @@ int main() {
     qc.print(std::cout);
     std::cout << std::endl;
 
-    qc = ConstantPropagation::optimize(qc);
+    ConstantPropagation::optimize(qc);
 
     qc.print(std::cout);
 

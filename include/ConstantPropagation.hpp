@@ -15,14 +15,16 @@
 
 class ConstantPropagation {
 public:
-    static qc::QuantumComputation optimize(qc::QuantumComputation& qc);
-    static qc::QuantumComputation optimize(qc::QuantumComputation &qc, size_t maxAmplitudes) ;
+    static void optimize(qc::QuantumComputation &qc);
 
-    [[nodiscard]] static std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>>
-    propagate(const qc::QuantumComputation &qc, size_t maxAmplitudes);
+    static void optimize(qc::QuantumComputation &qc, size_t maxAmplitudes);
 
-    static std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>>
-    propagate(const qc::QuantumComputation &qc, size_t maxAmplitudes, const std::shared_ptr<UnionTable> &table);
+    static std::shared_ptr<UnionTable>
+    propagate(qc::QuantumComputation &qc, size_t maxAmplitudes);
+
+    static void
+    propagate(qc::QuantumComputation &qc, size_t maxAmplitudes, const std::shared_ptr<UnionTable> &table);
+
 private:
     static bool checkAmplitude(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes, size_t index);
 
