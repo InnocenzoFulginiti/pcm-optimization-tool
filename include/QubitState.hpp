@@ -117,7 +117,7 @@ public:
 
     bool neverActivated(const std::vector<size_t> &indices) const;
 
-    void removeBit(size_t q);
+    [[maybe_unused]] void removeBit(size_t q);
 
     static std::shared_ptr<QubitState>
     fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits);

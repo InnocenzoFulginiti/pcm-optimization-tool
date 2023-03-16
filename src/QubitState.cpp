@@ -83,13 +83,13 @@ void QubitState::swapIndex(size_t q1, size_t q2) {
     this->map = newMap;
 }
 
-void QubitState::removeBit(size_t q) {
+[[maybe_unused]] void QubitState::removeBit(size_t q) {
     std::unordered_map<BitSet, Complex> newMap{};
     this->nQubits--;
 
     for (auto [key, value]: this->map) {
-        BitSet newKey = key & ((1 << q) - 1); //Keep bits right of q
-        newKey |= (key & (~((1 << (q + 1)) - 1))) >> 1; //Keep bits left of q and shift them right
+        BitSet newKey = key & ((BitSet(1) << q) - 1); //Keep bits right of q
+        newKey |= (key & (~((BitSet(1) << (q + 1)) - 1))) >> 1; //Keep bits left of q and shift them right
         newKey.setSize(nQubits);
         newMap[newKey] += value;
     }
@@ -123,19 +123,19 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
         //Calculate new key
         BitSet leftUnchanged = key & ~((BitSet(1) << (left + 1)) - 1);
         BitSet rightUnchanged = key & ((BitSet(1) << right) - 1);
-        BitSet movingBit = key & (1 << oldI);
+        BitSet movingBit = key & (BitSet(1) << oldI);
 
         BitSet middle;
         BitSet shiftedMoving;
 
         if (oldI >= newI) {
             //Move middle to the left
-            middle = key & (((1 << left) - 1) & ~((1 << right) - 1));
+            middle = key & (((BitSet(1) << left) - 1) & ~((BitSet(1) << right) - 1));
             middle <<= 1;
             shiftedMoving = movingBit >> (left - right);
         } else {
             //Move middle to the right
-            middle = key & (((1 << (left + 1)) - 1) & ~((1 << (right + 1)) - 1));
+            middle = key & (((BitSet(1) << (left + 1)) - 1) & ~((BitSet(1) << (right + 1)) - 1));
             middle >>= 1;
             shiftedMoving = movingBit << (left - right);
         }
@@ -189,11 +189,11 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
             size_t nextBit2 = 0;
             for (bool nextIsFrom1: interlace) {
                 if (nextIsFrom1) {
-                    newKey |= ((key1 & (1 << nextBit1)) >> nextBit1) << nextBitNew;
+                    newKey |= ((key1 & (BitSet(1) << nextBit1)) >> nextBit1) << nextBitNew;
                     nextBit1++;
                 } else {
                     //use next bit from 2 first
-                    newKey |= ((key2 & (1 << nextBit2)) >> nextBit2) << nextBitNew;
+                    newKey |= ((key2 & (BitSet(1) << nextBit2)) >> nextBit2) << nextBitNew;
                     nextBit2++;
                 }
                 nextBitNew++;
@@ -218,13 +218,13 @@ void QubitState::applyGate(const size_t target, const std::array<Complex, 4> mat
          * Matrix = | a b | = [a b c d]
          *          | c d |
          */
-        if ((key & (1 << target)) == 0) {
+        if ((key & (BitSet(1) << target)) == 0) {
             //Qubit is 0
             if (!matrix[0].isZero()) {
                 newMap[key] += val * matrix[0];
             }
             if (!matrix[2].isZero()) {
-                newMap[BitSet(this->nQubits, key | (1 << target))] += val * matrix[2];
+                newMap[BitSet(this->nQubits, key | (BitSet(1) << target))] += val * matrix[2];
             }
         } else {
             //Qubit is 1
@@ -266,7 +266,7 @@ bool QubitState::operator==(const QubitState &rhs) const {
 bool QubitState::neverActivated(const std::vector<size_t> &indices) const {
     BitSet mask(0);
     for (size_t index: indices) {
-        mask |= 1 << index;
+        mask |= BitSet(1) << index;
     }
 
     return std::all_of(this->map.begin(), this->map.end(),
@@ -276,7 +276,7 @@ bool QubitState::neverActivated(const std::vector<size_t> &indices) const {
 bool QubitState::alwaysActivated(const std::vector<size_t> &indices) const {
     BitSet mask(0);
     for (size_t index: indices) {
-        mask |= 1 << index;
+        mask |= BitSet(1) << index;
     }
 
     return std::all_of(this->map.begin(), this->map.end(),
@@ -303,7 +303,7 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
 
     BitSet mask(0);
     for (size_t index: controls) {
-        mask |= 1 << index;
+        mask |= BitSet(1) << index;
     }
 
     //Split amplitudes into activated and deactivated
@@ -341,7 +341,7 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2, const std::vector<size_
 
     BitSet mask(0);
     for (size_t index: controls) {
-        mask |= 1 << index;
+        mask |= BitSet(1) << index;
     }
 
     //Split amplitudes into activated and deactivated
