@@ -40,12 +40,12 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
         return;
 
     if (this->quReg[qubit1].isTop()) {
-        this->quReg[qubit2] = TOP::T;
+        this->setTop(qubit2);
         return;
     }
 
     if (this->quReg[qubit2].isTop()) {
-        this->quReg[qubit1] = TOP::T;
+        this->setTop(qubit1);
         return;
     }
 

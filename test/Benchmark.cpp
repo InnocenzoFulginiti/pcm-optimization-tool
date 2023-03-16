@@ -34,7 +34,7 @@ namespace c = std::chrono;
 using tp = std::chrono::steady_clock::time_point;
 
 //Took about 1:40h in my Laptop
-//Run this with ./build/tests [!benchmark] --reporter console
+//Run this with ./tests [!benchmark] --reporter console
 //to copy std::cout to csv file
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     fs::path file = GENERATE(take(250, qasmFile(QASMFileGenerator::ALL)));
@@ -47,7 +47,14 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::cout.flush();
 
     start = c::steady_clock::now();
-    qc::QuantumComputation qc(file.string());
+    qc::QuantumComputation qc;
+    try {
+        qc = qc::QuantumComputation(file.string());
+    } catch (std::exception &e) {
+        std::cout << ", qfr threw an exception while importing: " << e.what() << std::endl;
+        return;
+    }
+
     end = c::steady_clock::now();
     dur = c::duration_cast<c::microseconds>(end - start).count();
 

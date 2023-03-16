@@ -21,9 +21,20 @@ void approx(const Complex &expected, const Complex &actual, double epsilon) {
 void approxQubitState(const std::shared_ptr<QubitState> &expected, const std::shared_ptr<QubitState> &actual,
                       double epsilon) {
     CAPTURE(epsilon);
+    double globalPhase = 0;
+    bool globalPhaseSet = false;
     for (size_t key = 0; key < (static_cast<size_t>(1) << expected->getNQubits()); key++) {
+        if (!globalPhaseSet && !(*expected)[key].isZero()) {
+            globalPhase = (*expected)[key].arg() - (*actual)[key].arg();
+            globalPhaseSet = true;
+        }
         CAPTURE(key);
-        approx((*expected)[key], (*actual)[key], epsilon);
+        CAPTURE((*expected)[key], (*expected)[key].arg(), (*expected)[key].abs());
+        CAPTURE((*actual)[key], (*actual)[key].arg(), (*actual)[key].abs());
+        CAPTURE(globalPhaseSet, globalPhase);
+        Complex actualWithPhase = (*actual)[key] * Complex(0, globalPhase).exp();
+        CAPTURE(actualWithPhase);
+        approx((*expected)[key], actualWithPhase, epsilon);
     }
 }
 
@@ -159,6 +170,7 @@ void approxUnionTable(const std::shared_ptr<UnionTable> &expected, const std::sh
             REQUIRE(actual->isTop(i));
         } else {
             REQUIRE(!actual->isTop(i));
+            CAPTURE("Qubit " + std::to_string(i));
             approxQubitState((*expected)[i].getQubitState(), (*actual)[i].getQubitState(), epsilon);
         }
     }

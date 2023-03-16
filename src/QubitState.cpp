@@ -66,9 +66,9 @@ void QubitState::swapIndex(size_t q1, size_t q2) {
 
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
     for (auto [key, value]: this->map) {
-        BitSet k1 = key & (1 << q1);
-        BitSet k2 = key & (1 << q2);
-        BitSet newKey = key & ~((1 << q1) | (1 << q2));
+        BitSet k1 = key & (BitSet(1) << q1);
+        BitSet k2 = key & (BitSet(1) << q2);
+        BitSet newKey = key & ~((BitSet(1) << q1) | (BitSet(1) << q2));
         if (q1 >= q2) {
             newKey |= k1 >> (q1 - q2);
             newKey |= k2 << (q1 - q2);
@@ -121,8 +121,8 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
     for (auto [key, value]: this->map) {
         //Calculate new key
-        BitSet leftUnchanged = key & ~((1 << (left + 1)) - 1);
-        BitSet rightUnchanged = key & ((1 << right) - 1);
+        BitSet leftUnchanged = key & ~((BitSet(1) << (left + 1)) - 1);
+        BitSet rightUnchanged = key & ((BitSet(1) << right) - 1);
         BitSet movingBit = key & (1 << oldI);
 
         BitSet middle;
@@ -229,7 +229,7 @@ void QubitState::applyGate(const size_t target, const std::array<Complex, 4> mat
         } else {
             //Qubit is 1
             if (!matrix[1].isZero()) {
-                newMap[key & ~(1 << target)] += val * matrix[1];
+                newMap[key & ~(BitSet(1, 1) << target)] += val * matrix[1];
             }
             if (!matrix[3].isZero()) {
                 newMap[key] += val * matrix[3];
@@ -372,7 +372,9 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2,
                                    std::array<std::array<Complex, 4>, 4> mat) {
     std::unordered_map<BitSet, Complex> newMap{};
 
-    BitSet resetMask = ~(1 << t1 | 1 << t2);
+    BitSet resetMask = (BitSet(1) << t1 | BitSet(1) << t2);
+    resetMask.setSize(this->nQubits);
+    resetMask = ~resetMask;
     for (auto &[key, value]: this->map) {
         bool t1Val = key[t1];
         bool t2Val = key[t2];
@@ -382,6 +384,7 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2,
             newKey = key & resetMask;
             newKey |= (row & 1) << t1;
             newKey |= ((row & 2) >> 1) << t2;
+            newKey.setSize(this->nQubits);
             newMap[newKey] += mat[row][col] * value;
         }
     }

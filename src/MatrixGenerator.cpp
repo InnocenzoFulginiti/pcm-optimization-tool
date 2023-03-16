@@ -24,7 +24,7 @@ std::array<Complex, 4> getMatrix(const qc::Operation &op) {
 
     switch (op.getType()) {
         case qc::None:
-            break;
+            return {0, 0, 0, 0};
         case qc::I:
             return U3(0, 0, 0);
         case qc::H:
@@ -113,7 +113,7 @@ std::array<std::array<Complex, 4>, 4> getTwoQubitMatrix(const qc::Operation &op)
                     }};
         case qc::ECR:
             return {{
-                            {1, 0, SQRT_2_2,},
+                            {0, SQRT_2_2, 0, Complex(0, SQRT_2_2)},
                             {SQRT_2_2, 0, Complex(0, -SQRT_2_2), 0},
                             {0, Complex(0, SQRT_2_2), 0, SQRT_2_2},
                             {Complex(0, -SQRT_2_2), 0, SQRT_2_2, 0}
