@@ -22,7 +22,7 @@ public:
 
             std::cout << "Test Started at: " << buf << std::endl;
             std::cout
-                    << "fileName,maxNAmpls,parseTime,nQubits,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
+                    << "commit,fileName,maxNAmpls,epsilon,parseTime,nQubits,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
                     << std::endl;
         }
     }
@@ -45,7 +45,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     long long dur;
 
     //commit,fileName,maxNAmpls,epsolon
-    std::cout << GIT_COMMIT_HASH << file.string() << "," << maxNAmpls << "," << eps;
+    std::cout << GIT_COMMIT_HASH << "," << file.string() << "," << maxNAmpls << "," << eps;
     std::cout.flush();
 
     start = c::steady_clock::now();

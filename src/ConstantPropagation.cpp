@@ -35,9 +35,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     //Use qfr to flatten compound gates
     qc::CircuitOptimizer::flattenOperations(qc);
 
+    qc::QuantumComputation newQc(qc.getNqubits());
+
     auto it = qc.begin();
     while (it != qc.end()) {
         auto op = (*it).get();
+        it++;
         //Gates that can be ignored
         if (op->getType() == qc::Barrier ||
             op->getType() == qc::Snapshot ||
@@ -45,7 +48,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             op->getType() == qc::Teleportation ||
             op->getType() == qc::OpCount
                 ) {
-            it++;
+            newQc.emplace_back(op->clone());
             continue;
         }
 
@@ -62,7 +65,18 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             for (auto t: op->getTargets()) {
                 table->setTop(t);
             }
-            it++;
+            newQc.emplace_back(op->clone());
+            continue;
+        }
+
+        if (op->isCompoundOperation()) {
+            std::cout << "Constant Propagation does not support Compound Gates, is skipped!" << std::endl;
+            auto comp = dynamic_cast<qc::CompoundOperation *>(op);
+            for (auto &o: *comp) {
+                for (size_t t: o->getTargets()) {
+                    table->setTop(t);
+                }
+            }
             continue;
         }
 
@@ -75,6 +89,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         op->getControls().clear();
         for (auto c: min) {
             op->getControls().insert({static_cast<unsigned int>(c)});
+        }
+
+        if (act == NEVER) {
+            continue;
+        } else {
+            newQc.emplace_back(op->clone());
         }
 
         if (op->getType() == qc::SWAP) {
@@ -90,59 +110,31 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             for (size_t c: min)
                 op->getControls().insert({static_cast<unsigned int>(c)});
 
-            switch (act) {
-                case ALWAYS:
-                    table->swap(i, j);
-                    it++;
+            if (act == ALWAYS) {
+                table->swap(i, j);
+            } else {
+                table->combine(j, i);
+                table->combine(i, min);
+                min.emplace_back(i);
+                if ((*table)[i].isTop()) {
                     continue;
-                case NEVER:
-                    it = qc.erase(it);
-                    continue;
-                case UNKNOWN:
-                case SOMETIMES:
-                    table->combine(j, i);
-                    table->combine(i, min);
-                    min.emplace_back(i);
-                    if ((*table)[i].isTop()) {
-                        it++;
-                        continue;
-                    } else {
-                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
-                        (*table)[i].getQubitState()->applyGate(j, min, {0, 1, 1, 0});
-                        (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
-                        checkAmplitude(table, maxAmplitudes, i);
-                    }
-                    it++;
-                    continue;
-            }
-        }
-
-        if (op->isCompoundOperation()) {
-            std::cout << "Constant Propagation does not support Compound Gates, is skipped!" << std::endl;
-            auto comp = dynamic_cast<qc::CompoundOperation *>(it->get());
-            for (auto &o: *comp) {
-                for (size_t t: o->getTargets()) {
-                    table->setTop(t);
+                } else {
+                    (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
+                    (*table)[i].getQubitState()->applyGate(j, min, {0, 1, 1, 0});
+                    (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
+                    checkAmplitude(table, maxAmplitudes, i);
                 }
             }
-
-            it++;
             continue;
         }
 
         if (op->getType() == qc::Measure) {
-            auto nonUni = dynamic_cast<qc::NonUnitaryOperation *>(it->get());
+            auto nonUni = dynamic_cast<qc::NonUnitaryOperation *>(op);
 
             for (auto const t: nonUni->getTargets()) {
                 table->setTop(t);
             }
 
-            it++;
-            continue;
-        }
-
-        if (act == NEVER) {
-            it = qc.erase(it);
             continue;
         }
 
@@ -156,7 +148,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             checkAmplitude(table, maxAmplitudes, t1);
 
             if (table->isTop(t1)) {
-                it++;
                 continue;
             }
 
@@ -164,7 +155,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             checkAmplitude(table, maxAmplitudes, t1);
 
             if (table->isTop(t1)) {
-                it++;
                 continue;
             }
 
@@ -173,7 +163,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                                                             table->indexInState(t2),
                                                             table->indexInState(min),
                                                             twoQubitMat);
-            it++;
             continue;
         } else {
             //Single Qubit Gate
@@ -181,7 +170,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             auto singleQubitMat = getMatrix(*op);
 
             if (table->isTop(target)) {
-                it++;
                 continue;
             }
 
@@ -190,14 +178,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             checkAmplitude(table, maxAmplitudes, target);
 
             if (table->isTop(target)) {
-                it++;
                 continue;
             } else {
                 (*table)[target].getQubitState()->applyGate(table->indexInState(target),
                                                             table->indexInState(min),
                                                             singleQubitMat);
                 checkAmplitude(table, maxAmplitudes, target);
-                it++;
                 continue;
             }
         }
