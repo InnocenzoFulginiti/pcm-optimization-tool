@@ -24,7 +24,7 @@ public:
 
     void combine(std::vector<size_t> qubits);
 
-    void print(std::ostream &os) const;
+    [[maybe_unused]] void print(std::ostream &os) const;
 
     QubitStateOrTop &operator[](size_t index) {
         return this->quReg[index];
@@ -38,21 +38,13 @@ public:
 
     [[nodiscard]] std::string to_string() const;
 
-    void setTable(QubitStateOrTop *newTable) {
-        this->quReg = newTable;
-    }
-
-    QubitStateOrTop *getTable() {
-        return this->quReg;
-    }
-
     std::pair<ActivationState, std::vector<size_t>> minimizeControls(std::vector<size_t> controls);
 
     void swap(size_t q1, size_t q2);
 
     [[nodiscard]] size_t indexInState(size_t qubit) const;
 
-    [[nodiscard]] std::vector<size_t> indexInState(const std::vector<size_t>& qubit) const;
+    [[nodiscard]] std::vector<size_t> indexInState(const std::vector<size_t> &qubits) const;
 
     [[nodiscard]] bool isTop(size_t index) const;
 
@@ -69,11 +61,13 @@ public:
 
     [[nodiscard]] std::shared_ptr<UnionTable> clone() const;
 
+    [[nodiscard]] size_t getNQubits() const {
+        return nQubits;
+    }
+
 private:
     size_t nQubits;
     QubitStateOrTop *quReg;
-
-    bool anyIsTop(std::vector<size_t> indices);
 
     bool isAlwaysOne(size_t q);
 

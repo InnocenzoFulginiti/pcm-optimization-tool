@@ -18,43 +18,57 @@ void approx(const Complex &expected, const Complex &actual, double epsilon) {
     CHECK(imagDiff <= epsilon);
 }
 
-void approx(const std::shared_ptr<QubitState>& expected, const std::shared_ptr<QubitState>& actual, double epsilon) {
+void approxQubitState(const std::shared_ptr<QubitState> &expected, const std::shared_ptr<QubitState> &actual,
+                      double epsilon) {
     CAPTURE(epsilon);
+    double globalPhase = 0;
+    bool globalPhaseSet = false;
     for (size_t key = 0; key < (static_cast<size_t>(1) << expected->getNQubits()); key++) {
+        if (!globalPhaseSet && !(*expected)[key].isZero()) {
+            globalPhase = (*expected)[key].arg() - (*actual)[key].arg();
+            globalPhaseSet = true;
+        }
         CAPTURE(key);
-        approx((*expected)[key], (*actual)[key], epsilon);
+        CAPTURE((*expected)[key], (*expected)[key].arg(), (*expected)[key].abs());
+        CAPTURE((*actual)[key], (*actual)[key].arg(), (*actual)[key].abs());
+        CAPTURE(globalPhaseSet, globalPhase);
+        Complex actualWithPhase = (*actual)[key] * Complex(0, globalPhase).exp();
+        CAPTURE(actualWithPhase);
+        approx((*expected)[key], actualWithPhase, epsilon);
     }
 }
 
-std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, long long seed) {
-    if(nQubits == 0)
+std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, double chanceForTop, unsigned int seed) {
+    if (nQubits == 0)
         return std::make_shared<UnionTable>(0);
 
     UNSCOPED_INFO("Random UnionTable seed: " << seed);
 
-    std::srand(static_cast<unsigned int>(seed));
+    std::default_random_engine ran(seed);
+    std::uniform_real_distribution<double> dis(0, 1.0);
 
     std::shared_ptr<UnionTable> table = std::make_shared<UnionTable>(nQubits);
 
     //Create a random partitioning of the qubits
     std::vector<std::vector<size_t>> partitioning(nQubits);
 
-    for(size_t i = 0; i < nQubits; i++) {
+    for (size_t i = 0; i < nQubits; i++) {
         size_t j = 0;
-        double r = (rand()%1000)/1000.0;
-        while(r > 0.5 && j < partitioning.size() - 1) {
+        double r = dis(ran);
+        while (r > 0.5 && j < partitioning.size() - 1) {
             j++;
-            r = (rand()%1000)/1000.0;
+            r = dis(ran);
         }
         partitioning[j].push_back(i);
     }
 
     //Counter so seed is different for each state
-    int i = 0;
-    for(const std::vector<size_t>& partition : partitioning) {
-        QubitStateOrTop state = generateRandomStateOrTop(partition.size(), 0.8 / static_cast<double>(partition.size()),
+    unsigned int i = 0;
+    for (const std::vector<size_t> &partition: partitioning) {
+        QubitStateOrTop state = generateRandomStateOrTop(partition.size(),
+                                                         chanceForTop / static_cast<double>(partition.size()),
                                                          seed + i++);
-        for(const size_t qubit : partition) {
+        for (const size_t qubit: partition) {
             (*table)[qubit] = state;
         }
     }
@@ -62,29 +76,29 @@ std::shared_ptr<UnionTable> generateRandomUnionTable(size_t nQubits, long long s
     return table;
 }
 
-std::shared_ptr<QubitState> generateRandomState(size_t nQubits, long long seed) {
+[[maybe_unused]] std::shared_ptr<QubitState> generateRandomState(size_t nQubits, unsigned int seed) {
     return generateRandomStateOrTop(nQubits, 0.0, seed).getQubitState();
 }
 
-QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop, long long seed) {
-    if(nQubits == 0)
+QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop, unsigned int seed) {
+    if (nQubits == 0)
         return std::make_shared<QubitState>(0);
 
-    std::srand(static_cast<unsigned int>(seed));
-
-    double r = rand()%1000 / 1000.0;
-    if(r < chanceForTop)
+    std::default_random_engine rand(seed);
+    std::uniform_real_distribution<double> dis(0.0, 1.0);
+    double r = dis(rand);
+    if (r < chanceForTop)
         return TOP::T;
 
     auto state = std::make_shared<QubitState>(nQubits);
     state->clear();
 
-    for(size_t key = 0; key < (static_cast<size_t>(1) << nQubits); key++) {
+    for (size_t key = 0; key < (static_cast<size_t>(1) << nQubits); key++) {
         //Only values for 2/3 of the keys
-        r = rand()%1000 / 1000.0;
-        if(r < 2.0/3.0 || state->size() == 0) {
-            double real = (rand()%1000 / 5000.0) + 1.0;
-            double imag = (rand()%1000 / 5000.0) + 1.0;
+        r = dis(rand);
+        if (r < 2.0 / 3.0 || state->size() == 0) {
+            double real = dis(rand) * 2.0 - 1.0;
+            double imag = dis(rand) * 2.0 - 1.0;
             (*state)[BitSet(nQubits, key)] = Complex(real, imag);
         }
     }
@@ -92,6 +106,74 @@ QubitStateOrTop generateRandomStateOrTop(size_t nQubits, double chanceForTop, lo
     state->normalize();
 
     return state;
+}
+
+void compareUnitTableToState(const std::shared_ptr<UnionTable> &ut,
+                             const std::vector<std::pair<size_t, Complex>> &expectedState) {
+    auto actualTable = ut->clone();
+
+    auto expected = expectedState;
+    std::sort(expected.begin(), expected.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+
+    INFO("Actual before combination:\n" + actualTable->to_string());
+
+    //Combine all states for easier comparison
+    for (size_t i = 1; i < ut->getNQubits(); i++) {
+        actualTable->combine(0, i);
+    }
+
+    REQUIRE((*actualTable)[0].isQubitState());
+    auto actualState = (*actualTable)[0].getQubitState();
+
+    INFO("Actual:\t" + actualState->to_string());
+    INFO("Expected:\t" + QubitState::fromVector(expected, ut->getNQubits())->to_string());
+
+    bool globalPhaseSet = false;
+    double globalPhase = 0;
+
+    for (size_t key = 0; key < (static_cast<size_t>(1) << ut->getNQubits()); key++) {
+        Complex expectedValue = 0;
+        if (expected[0].first == key) {
+            expectedValue = expected[0].second;
+            expected.erase(expected.begin());
+        }
+
+        INFO(std::to_string(key) + " (0b" + BitSet(ut->getNQubits(), key).to_string() + ")");
+        INFO("Expected Value:\t" + expectedValue.to_string() + " = mag: " + std::to_string(expectedValue.norm()) +
+             " arg: " + std::to_string(expectedValue.arg()) + " +global phase = " +
+             std::to_string(expectedValue.arg() + globalPhase));
+        Complex actualValue = (*actualState)[key];
+        INFO("Actual Value:\t" + actualValue.to_string() + " = mag: " + std::to_string(actualValue.norm()) + " arg: " +
+             std::to_string(actualValue.arg()));
+
+        if (!expectedValue.isZero() && !globalPhaseSet) {
+            globalPhase = actualValue.arg() - expectedValue.arg();
+            globalPhaseSet = true;
+        }
+
+        CAPTURE(globalPhase, globalPhaseSet);
+
+        Complex expectedPhased = expectedValue * Complex(std::cos(globalPhase), std::sin(globalPhase));
+        CAPTURE(expectedPhased);
+
+        approx(expectedPhased, actualValue, 1e-2);
+    }
+
+}
+
+void approxUnionTable(const std::shared_ptr<UnionTable> &expected, const std::shared_ptr<UnionTable> &actual,
+                      double epsilon) {
+    REQUIRE(expected->getNQubits() == actual->getNQubits());
+
+    for (size_t i = 0; i < expected->getNQubits(); i++) {
+        if (expected->isTop(i)) {
+            REQUIRE(actual->isTop(i));
+        } else {
+            REQUIRE(!actual->isTop(i));
+            CAPTURE("Qubit " + std::to_string(i));
+            approxQubitState((*expected)[i].getQubitState(), (*actual)[i].getQubitState(), epsilon);
+        }
+    }
 }
 
 QASMFileGenerator::QASMFileGenerator(QASMFileGenerator::SIZE s) {
@@ -148,7 +230,8 @@ std::vector<fs::path> QASMFileGenerator::findQASMFiles(const std::string &subfol
     return foundQASMFiles;
 }
 
-CircuitMetrics::CircuitMetrics(const fs::path &pathOfQasmFile) {fileName = pathOfQasmFile.string();
+CircuitMetrics::CircuitMetrics(const fs::path &pathOfQasmFile) {
+    fileName = pathOfQasmFile.string();
 
     fs::path readme = pathOfQasmFile.parent_path().append("README.md");
     std::ifstream file(readme);
@@ -191,7 +274,7 @@ CircuitMetrics::CircuitMetrics(const fs::path &pathOfQasmFile) {fileName = pathO
 
 }
 
-std::string CircuitMetrics::csvHeader() {
+[[maybe_unused]] std::string CircuitMetrics::csvHeader() {
     return "File Name,"
            "Qubit Count,"
            "Circuit Depth,"
@@ -211,7 +294,7 @@ std::string CircuitMetrics::csvHeader() {
            "Liveness Supermarq";
 }
 
-std::string CircuitMetrics::csvLine() const {
+[[maybe_unused]] std::string CircuitMetrics::csvLine() const {
     return fileName + ","
            + std::to_string(qubitCount) + ","
            + std::to_string(circuitDepth) + ","

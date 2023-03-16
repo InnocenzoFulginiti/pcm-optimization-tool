@@ -40,12 +40,12 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
         return;
 
     if (this->quReg[qubit1].isTop()) {
-        this->quReg[qubit2] = TOP::T;
+        this->setTop(qubit2);
         return;
     }
 
     if (this->quReg[qubit2].isTop()) {
-        this->quReg[qubit1] = TOP::T;
+        this->setTop(qubit1);
         return;
     }
 
@@ -86,7 +86,7 @@ void UnionTable::combine(size_t qubit1, size_t qubit2) {
     }
 }
 
-void UnionTable::print(std::ostream &os) const {
+[[maybe_unused]] void UnionTable::print(std::ostream &os) const {
     os << this->to_string() << std::endl;
 }
 
@@ -129,12 +129,6 @@ std::string UnionTable::to_string() const {
         }
     }
     return os.str();
-}
-
-bool UnionTable::anyIsTop(std::vector<size_t> indices) {
-    return std::any_of(indices.begin(), indices.end(),
-                       [this](size_t index) { return this->isTop(index); }
-    );
 }
 
 bool UnionTable::isTop(size_t index) const {
@@ -384,10 +378,10 @@ std::shared_ptr<UnionTable> UnionTable::clone() const {
     return newTable;
 }
 
-std::vector<size_t> UnionTable::indexInState(const std::vector<size_t> &qubit) const {
+std::vector<size_t> UnionTable::indexInState(const std::vector<size_t> &qubits) const {
     std::vector<size_t> indices{};
-    indices.reserve(qubit.size());
-    for (size_t q: qubit) {
+    indices.reserve(qubits.size());
+    for (size_t q: qubits) {
         indices.emplace_back(this->indexInState(q));
     }
 

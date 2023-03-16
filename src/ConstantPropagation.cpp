@@ -6,7 +6,6 @@
 #include "MatrixGenerator.hpp"
 #include "CircuitOptimizer.hpp"
 
-#define SHOW_DEBUG_MSG false
 
 bool ConstantPropagation::checkAmplitude(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes, size_t index) {
     if ((*table)[index].isQubitState()) {
@@ -19,7 +18,8 @@ bool ConstantPropagation::checkAmplitude(const std::shared_ptr<UnionTable> &tabl
     return false;
 }
 
-bool ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes) {
+[[maybe_unused]] bool
+ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes) {
     return std::any_of(table->begin(), table->end(), [&](auto const &u) {
         if (u.isQubitState()) {
             if (u.getQubitState()->size() > maxAmplitudes) {
@@ -40,14 +40,30 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
     newQc.clear();
 
     for (auto const &op: copyQc) {
-        if (op->getType() == qc::Barrier) {
+        //Gates that can be ignored
+        if (op->getType() == qc::Barrier ||
+            op->getType() == qc::Snapshot ||
+            op->getType() == qc::ShowProbabilities ||
+            op->getType() == qc::Teleportation ||
+            op->getType() == qc::OpCount
+                ) {
             newQc.emplace_back(op->clone());
             continue;
         }
 
-        if (op->isClassicControlledOperation()) {
-            std::cout << "Classical Controlled Operations not supported, is skipped!" << std::endl;
-            //TODO: Set Targets to T
+        //Currently unsupported gates -> Targets set to top
+        if (op->isClassicControlledOperation()
+            || op->getType() == qc::Peres
+            || op->getType() == qc::Peresdag
+            || op->getType() == qc::ATrue
+            || op->getType() == qc::AFalse
+            || op->getType() == qc::MultiATrue
+            || op->getType() == qc::MultiAFalse
+            || op->getType() == qc::Reset
+                ) {
+            for (auto t: op->getTargets()) {
+                table->setTop(t);
+            }
             newQc.emplace_back(op->clone());
             continue;
         }
@@ -95,20 +111,6 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
             }
         }
 
-        //Reset qubit to |0>
-        if (op->getType() == qc::Reset) {
-            for (const size_t t: op->getTargets()) {
-                if ((*table)[t].isQubitState()) {
-                    (*table)[t].getQubitState()->removeBit(table->indexInState(t));
-                }
-
-                (*table)[t] = std::make_shared<QubitState>(1);
-            }
-
-            newQc.emplace_back(op->clone());
-            continue;
-        }
-
         if (op->isCompoundOperation()) {
             std::cout << "Constant Propagation does not support Compound Gates, is skipped!" << std::endl;
             auto comp = dynamic_cast<qc::CompoundOperation *>(op.get());
@@ -132,65 +134,66 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
             continue;
         }
 
-        if (SHOW_DEBUG_MSG) {
-            std::cout << table->to_string() << std::endl;
-            std::cout << "Applying Gate: " << op->getName();
-            std::cout << " with Target: " << op->getTargets().begin()[0];
-            std::cout << " and Controls: ";
-
-            for (auto c: op->getControls()) {
-                std::cout << c.qubit << " ";
-            }
-            std::cout << std::endl;
-        }
-
-        //"Ordinary" Gate
-        size_t target = op->getTargets().begin()[0];
         std::vector<size_t> controls{};
         for (auto c: op->getControls())
             controls.emplace_back(c.qubit);
 
         auto [act, min] = table->minimizeControls(controls);
+        if (act == NEVER) {
+            continue;
+        }
+
         auto newOp = op->clone();
         newOp->setControls({});
 
-        std::array<Complex, 4> G = getMatrix(*op);
+        for (auto c: min)
+            newOp->getControls().insert({static_cast<unsigned int>(c)});
 
-        switch (act) {
-            case NEVER:
+        newQc.emplace_back(newOp);
+
+        //Two qubit gates
+        if (qc::isTwoQubitGate(op->getType())) {
+            size_t t1 = op->getTargets()[0];
+            size_t t2 = op->getTargets()[1];
+            auto twoQubitMat = getTwoQubitMatrix(*op);
+            table->combine(t1, t2);
+
+            checkAmplitude(table, maxAmplitudes, t1);
+
+            if (table->isTop(t1))
                 continue;
-            case ALWAYS:
-                newQc.emplace_back(newOp);
-                if(table->isTop(target)) {
-                    continue;
-                }
 
-                (*table)[target].getQubitState()->applyGate(table->indexInState(target), G);
+            table->combine(t1, min);
+            checkAmplitude(table, maxAmplitudes, t1);
+
+            if (table->isTop(t1))
+                continue;
+
+            (*table)[t1].getQubitState()->applyTwoQubitGate(table->indexInState(t1),
+                                                            table->indexInState(t2),
+                                                            table->indexInState(min),
+                                                            twoQubitMat);
+        } else {
+            //Single Qubit Gate
+            size_t target = op->getTargets().begin()[0];
+            auto singleQubitMat = getMatrix(*op);
+
+            if (table->isTop(target)) {
+                continue;
+            }
+
+            table->combine(target, min);
+
+            checkAmplitude(table, maxAmplitudes, target);
+
+            if (table->isTop(target)) {
+                continue;
+            } else {
+                (*table)[target].getQubitState()->applyGate(table->indexInState(target),
+                                                            table->indexInState(min),
+                                                            singleQubitMat);
                 checkAmplitude(table, maxAmplitudes, target);
-                continue;
-            case UNKNOWN:
-            case SOMETIMES:
-                for (auto c: min)
-                    newOp->getControls().insert({static_cast<unsigned int>(c)});
-
-                newQc.emplace_back(newOp);
-
-                if(table->isTop(target)) {
-                    continue;
-                }
-
-                table->combine(target, min);
-
-                checkAmplitudes(table, maxAmplitudes);
-
-                if (table->isTop(target)) {
-                    continue;
-                } else {
-                    (*table)[target].getQubitState()->applyGate(table->indexInState(target),
-                                                                table->indexInState(min),
-                                                                G);
-                    checkAmplitude(table, maxAmplitudes, target);
-                }
+            }
         }
     } //Loop over Gates
 
@@ -199,8 +202,10 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
 
 std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagation::propagate(
         const qc::QuantumComputation &qc, size_t maxAmplitudes) {
-    auto table = std::make_shared<UnionTable>(qc.getNqubits());
-    return propagate(qc, maxAmplitudes, table);
+    auto copyQc = qc.clone();
+
+    auto table = std::make_shared<UnionTable>(copyQc.getNqubits());
+    return propagate(copyQc, maxAmplitudes, table);
 }
 
 qc::QuantumComputation ConstantPropagation::optimize(qc::QuantumComputation &qc) {

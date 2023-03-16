@@ -29,7 +29,7 @@ void testIntermediateResults(qc::QuantumComputation &qc,
         currentTable = table;
 
         std::vector<size_t> controls;
-        for(auto c : lastGateIter->get()->getControls()) {
+        for (auto c: lastGateIter->get()->getControls()) {
             controls.push_back(c.qubit);
         }
 
@@ -37,58 +37,15 @@ void testIntermediateResults(qc::QuantumComputation &qc,
         INFO("Last Gate was " + lastGateIter->get()->getName() + " with target " +
              std::to_string(lastGateIter->get()->getTargets().begin()[0]) + " and controls {" +
              std::accumulate(controls.begin(), controls.end(), std::string(), [](const auto &a, const auto &b) {
-                 return a + std::to_string(b) + ", ";}) + "}"
-             );
+                 return a + std::to_string(b) + ", ";
+             }) + "}"
+        );
         INFO("After " + std::to_string(gateIndex) + " gates:");
-        if(sortedExpectedValues.empty()) {
+        if (sortedExpectedValues.empty()) {
             break;
         }
-        auto actualTable = currentTable->clone();
 
-        auto expected(sortedExpectedValues[0].second);
-        std::sort(expected.begin(), expected.end(),[](const auto &a, const auto &b) { return a.first < b.first; });
-
-        INFO("Actual before combination:\n" + actualTable->to_string());
-
-        //Combine all states for easier comparison
-        for (size_t i = 1; i < qc.getNqubits(); i++) {
-            actualTable->combine(0, i);
-        }
-
-        REQUIRE((*actualTable)[0].isQubitState());
-        auto actualState = (*actualTable)[0].getQubitState();
-
-        INFO("Actual:\t" + actualState->to_string());
-        INFO("Expected:\t" + QubitState::fromVector(expected, qc.getNqubits())->to_string());
-
-        bool globalPhaseSet = false;
-        double globalPhase = 0;
-
-        for (size_t key = 0; key < (static_cast<size_t>(1) << qc.getNqubits()); key++) {
-            Complex expectedValue = 0;
-            if(expected[0].first == key) {
-                expectedValue = expected[0].second;
-                expected.erase(expected.begin());
-            }
-
-            INFO(std::to_string(key) + " (0b" + BitSet(qc.getNqubits(), key).to_string() + ")");
-            INFO("Expected Value:\t" + expectedValue.to_string() + " = mag: " + std::to_string(expectedValue.norm()) + " arg: " + std::to_string(expectedValue.arg()) + " +global phase = " + std::to_string(expectedValue.arg() + globalPhase));
-            Complex actualValue = (*actualState)[key];
-            INFO("Actual Value:\t" + actualValue.to_string() + " = mag: " + std::to_string(actualValue.norm()) + " arg: " + std::to_string(actualValue.arg()));
-
-            if(!expectedValue.isZero() && !globalPhaseSet) {
-                globalPhase = actualValue.arg() - expectedValue.arg();
-                globalPhaseSet = true;
-            }
-
-            CAPTURE(globalPhase, globalPhaseSet);
-
-            Complex expectedPhased = expectedValue * Complex(std::cos(globalPhase), std::sin(globalPhase));
-            CAPTURE(expectedPhased);
-
-            approx(expectedPhased, actualValue, 1e-2);
-        }
-
+        compareUnitTableToState(currentTable, sortedExpectedValues[0].second);
         sortedExpectedValues.erase(sortedExpectedValues.begin());
     }
 }
@@ -210,17 +167,22 @@ TEST_CASE("Try file with Classic Controlled gates") {
     auto classicControls = "../test/circuits/QASMBench/small/shor_n5/shor_n5.qasm";
     qc::QuantumComputation qc(classicControls);
 
-    //TODO: Deal with classical controlled gates and test
+    std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> result;
+
+    CHECK_NOTHROW(result = ConstantPropagation::propagate(qc, 1024));
 }
 
 TEST_CASE("Try specific file") {
     //auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
     //auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
     //auto classicControls = "../test/circuits/QASMBench/small/qec_sm_n5/qec_sm_n5.qasm";
+    //auto fileWithALotOfResets = QASM_Bench_Path  "/large/square_root_n60/square_root_n60.qasm"; //10.000+ resets
     auto shor = QASM_Bench_Path "/small/shor_n5/shor_n5.qasm";
     auto file = shor;
 
     qc::QuantumComputation qc(file);
+
+    qc::CircuitOptimizer::flattenOperations(qc);
 
     CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
 }

@@ -15,8 +15,13 @@ public:
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "google-explicit-constructor"
-    BitSet(int value) : size(MAX_QUBITS), bits(static_cast<size_t>(value)) {}
+
+    BitSet(int value);
+
+    BitSet(unsigned int value) : size(MAX_QUBITS), bits(static_cast<size_t>(value)) {}
+
     BitSet(size_t value) : size(MAX_QUBITS), bits(value) {}
+
 #pragma clang diagnostic pop
 
     BitSet(size_t _size, size_t _value) : size(_size), bits(_value) {};
@@ -98,7 +103,7 @@ public:
     }
 
     BitSet operator<<(const size_t shift) const {
-        return {this->size, this->bits << shift};
+        return {this->size + shift, this->bits << shift};
     }
 
     BitSet &operator<<=(const size_t shift) {
@@ -110,6 +115,12 @@ public:
         this->bits >>= shift;
         return *this;
     }
+
+    BitSet operator~() const {
+        return {this->size, ~this->bits};
+    }
+
+    BitSet operator-(const BitSet &other) const;
 
     friend std::ostream &operator<<(std::ostream &os, const BitSet &bitSet);
 

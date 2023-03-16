@@ -47,7 +47,8 @@ add_executable(tests
         test/OperationTest.cpp
         test/ConstantPropagationTest.cpp
         test/TestUtils.cpp
-        test/Benchmark.cpp)
+        test/Benchmark.cpp
+        test/BitSetTest.cpp)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
