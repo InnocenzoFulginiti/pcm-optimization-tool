@@ -29,7 +29,7 @@ void testIntermediateResults(qc::QuantumComputation &qc,
         currentTable = table;
 
         std::vector<size_t> controls;
-        for(auto c : lastGateIter->get()->getControls()) {
+        for (auto c: lastGateIter->get()->getControls()) {
             controls.push_back(c.qubit);
         }
 
@@ -37,10 +37,11 @@ void testIntermediateResults(qc::QuantumComputation &qc,
         INFO("Last Gate was " + lastGateIter->get()->getName() + " with target " +
              std::to_string(lastGateIter->get()->getTargets().begin()[0]) + " and controls {" +
              std::accumulate(controls.begin(), controls.end(), std::string(), [](const auto &a, const auto &b) {
-                 return a + std::to_string(b) + ", ";}) + "}"
-             );
+                 return a + std::to_string(b) + ", ";
+             }) + "}"
+        );
         INFO("After " + std::to_string(gateIndex) + " gates:");
-        if(sortedExpectedValues.empty()) {
+        if (sortedExpectedValues.empty()) {
             break;
         }
 
@@ -175,10 +176,13 @@ TEST_CASE("Try specific file") {
     //auto fileWithCompoundGates = "../test/circuits/QASMBench/small/wstate_n3/wstate_n3.qasm";
     //auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
     //auto classicControls = "../test/circuits/QASMBench/small/qec_sm_n5/qec_sm_n5.qasm";
+    //auto fileWithALotOfResets = QASM_Bench_Path  "/large/square_root_n60/square_root_n60.qasm"; //10.000+ resets
     auto shor = QASM_Bench_Path "/small/shor_n5/shor_n5.qasm";
     auto file = shor;
 
     qc::QuantumComputation qc(file);
+
+    qc::CircuitOptimizer::flattenOperations(qc);
 
     CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
 }

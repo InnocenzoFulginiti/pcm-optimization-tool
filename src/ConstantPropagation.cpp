@@ -59,6 +59,7 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
             || op->getType() == qc::AFalse
             || op->getType() == qc::MultiATrue
             || op->getType() == qc::MultiAFalse
+            || op->getType() == qc::Reset
                 ) {
             for (auto t: op->getTargets()) {
                 table->setTop(t);
@@ -108,20 +109,6 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
                     }
                     continue;
             }
-        }
-
-        //Reset qubit to |0>
-        if (op->getType() == qc::Reset) {
-            for (const size_t t: op->getTargets()) {
-                if ((*table)[t].isQubitState()) {
-                    (*table)[t].getQubitState()->removeBit(table->indexInState(t));
-                }
-
-                (*table)[t] = std::make_shared<QubitState>(1);
-            }
-
-            newQc.emplace_back(op->clone());
-            continue;
         }
 
         if (op->isCompoundOperation()) {
@@ -216,16 +203,6 @@ std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagati
 std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> ConstantPropagation::propagate(
         const qc::QuantumComputation &qc, size_t maxAmplitudes) {
     auto copyQc = qc.clone();
-    //Use qfr to try to replace classic controlled operations
-    qc::CircuitOptimizer::eliminateResets(copyQc);
-
-    try {
-        qc::CircuitOptimizer::deferMeasurements(copyQc);
-    } catch (qc::QFRException &e) {
-        //If Classic controlled gates target multiple bits, deferMeasurements will fail
-        //In this case, Classic controlled gates are skipped
-        //And their targets set to TOP
-    }
 
     auto table = std::make_shared<UnionTable>(copyQc.getNqubits());
     return propagate(copyQc, maxAmplitudes, table);
