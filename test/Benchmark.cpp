@@ -22,7 +22,7 @@ public:
 
             std::cout << "Test Started at: " << buf << std::endl;
             std::cout
-                    << "fileName,maxNAmpls,parseTime,nQubits,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
+                    << "commit,fileName,maxNAmpls,epsilon,parseTime,nQubits,nOpsStart,flattenTime,nOpsAfterInline,propagateTime,nOpsAfterPropagate,wasTop"
                     << std::endl;
         }
     }
@@ -44,8 +44,8 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     tp start, end;
     long long dur;
 
-    //fileName,maxNAmpls,epsolon
-    std::cout << file.string() << "," << maxNAmpls << "," << eps;
+    //commit,fileName,maxNAmpls,epsolon
+    std::cout << GIT_COMMIT_HASH << "," << file.string() << "," << maxNAmpls << "," << eps;
     std::cout.flush();
 
     start = c::steady_clock::now();
@@ -74,12 +74,12 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::cout.flush();
 
     start = c::steady_clock::now();
-    auto [newQC, ut] = ConstantPropagation::propagate(qc, maxNAmpls);
+    auto ut = ConstantPropagation::propagate(qc, maxNAmpls);
     end = c::steady_clock::now();
     dur = c::duration_cast<c::microseconds>(end - start).count();
 
     //propagateTime,nOpsAfterPropagate
-    std::cout << "," << dur << "," << newQC.getNops();
+    std::cout << "," << dur << "," << qc.getNops();
 
     size_t wasTop = 0;
     for (auto &qs: *ut) {

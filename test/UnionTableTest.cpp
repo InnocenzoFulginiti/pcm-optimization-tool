@@ -173,8 +173,8 @@ TEST_CASE("Test single RXX gate") {
     qc.h(1);
     qc.rxx(1, 2, PI_2);
 
-    auto [newQc, ut] = ConstantPropagation::propagate(qc, 10);
-    REQUIRE(newQc.getNops() == 2);
+    auto ut = ConstantPropagation::propagate(qc, 10);
+    REQUIRE(qc.getNops() == 2);
     REQUIRE(!ut->isTop(0));
     REQUIRE(!ut->isTop(1));
     REQUIRE(!ut->isTop(2));
@@ -196,9 +196,9 @@ TEST_CASE("Test multiple RXX gates") {
     qc.rxx(2, 3, PI / 4.0);
     qc.rxx(0, 1, PI * 1.5);
 
-    auto [newQc, ut] = ConstantPropagation::propagate(qc, 16);
+    auto ut = ConstantPropagation::propagate(qc, 16);
 
-    REQUIRE(newQc.getNops() == 4);
+    REQUIRE(qc.getNops() == 4);
 
     compareUnitTableToState(ut, {
             {0,  Complex(-0.327, 0)},
@@ -225,9 +225,9 @@ TEST_CASE("Test RZZ gate") {
     qc.h(0);
     qc.rzz(0, 1, PI * 1.5);
 
-    auto [newQc, ut] = ConstantPropagation::propagate(qc, 16);
+    auto ut = ConstantPropagation::propagate(qc, 16);
 
-    REQUIRE(newQc.getNops() == 2);
+    REQUIRE(qc.getNops() == 2);
     compareUnitTableToState(ut, {
             {0b0000, Complex(-0.5, -0.5)},
             {0b0001, Complex(-0.5, 0.5)}
@@ -248,8 +248,8 @@ TEST_CASE("Test RXX, RYY, RZZ identities") {
     SECTION("RXX(0) = I") {
         qc::QuantumComputation rxxI(2);
         rxxI.rxx(t1, t2, 0);
-        auto copy = sut->clone();
-        auto [qc, result] = ConstantPropagation::propagate(rxxI, 1 << UT_SIZE, copy);
+        auto result = sut->clone();
+        ConstantPropagation::propagate(rxxI, 1 << UT_SIZE, result);
 
         approxUnionTable(sut_combined, result);
     }
@@ -257,8 +257,8 @@ TEST_CASE("Test RXX, RYY, RZZ identities") {
     SECTION("RXX(4*pi) = I") {
         qc::QuantumComputation rxxI(2);
         rxxI.rxx(t1, t2, 4 * PI);
-        auto copy = sut->clone();
-        auto [qc, result] = ConstantPropagation::propagate(rxxI, 1 << UT_SIZE, copy);
+        auto result = sut->clone();
+        ConstantPropagation::propagate(rxxI, 1 << UT_SIZE, result);
 
         approxUnionTable(sut_combined, result);
     }
@@ -266,8 +266,8 @@ TEST_CASE("Test RXX, RYY, RZZ identities") {
     SECTION("RZZ(0) = I") {
         qc::QuantumComputation rzzI(2);
         rzzI.rzz(t1, t2, 0);
-        auto copy = sut->clone();
-        auto [qc, result] = ConstantPropagation::propagate(rzzI, 1 << UT_SIZE, copy);
+        auto result = sut->clone();
+        ConstantPropagation::propagate(rzzI, 1 << UT_SIZE, result);
 
         approxUnionTable(sut_combined, result);
     }
@@ -275,8 +275,8 @@ TEST_CASE("Test RXX, RYY, RZZ identities") {
     SECTION("RZZ(4*pi) = I") {
         qc::QuantumComputation rzzI(2);
         rzzI.rzz(t1, t2, 4 * PI);
-        auto copy = sut->clone();
-        auto [qc, result] = ConstantPropagation::propagate(rzzI, 1 << UT_SIZE, copy);
+        auto result = sut->clone();
+        ConstantPropagation::propagate(rzzI, 1 << UT_SIZE, result);
 
         approxUnionTable(sut_combined, result);
     }
@@ -284,8 +284,8 @@ TEST_CASE("Test RXX, RYY, RZZ identities") {
     SECTION("RYY(0) = I") {
         qc::QuantumComputation ryyI(2);
         ryyI.ryy(t1, t2, 0);
-        auto copy = sut->clone();
-        auto [qc, result] = ConstantPropagation::propagate(ryyI, 1 << UT_SIZE, copy);
+        auto result = sut->clone();
+        ConstantPropagation::propagate(ryyI, 1 << UT_SIZE, result);
 
         approxUnionTable(sut_combined, result);
     }
@@ -325,13 +325,13 @@ TEST_CASE("Test iSWAP") {
     auto iSWAPTable = startTable->clone();
     auto decompositionTable = startTable->clone();
 
-    auto [newQc, utISWAP] = ConstantPropagation::propagate(iSWAP, 1024, iSWAPTable);
-    auto [newQc2, utDecomposition] = ConstantPropagation::propagate(decomposition, 1024, decompositionTable);
+    ConstantPropagation::propagate(iSWAP, 1024, iSWAPTable);
+    ConstantPropagation::propagate(decomposition, 1024, decompositionTable);
 
-    CAPTURE(utISWAP->to_string());
-    CAPTURE(utDecomposition->to_string());
+    CAPTURE(iSWAPTable->to_string());
+    CAPTURE(decompositionTable->to_string());
 
-    approxUnionTable(utISWAP, utDecomposition, 1e-7);
+    approxUnionTable(iSWAPTable, decompositionTable, 1e-7);
 }
 
 TEST_CASE("Test DCX") {
@@ -357,13 +357,13 @@ TEST_CASE("Test DCX") {
     auto dcxTable = startTable->clone();
     auto cxcxTable = startTable->clone();
 
-    auto [newQc, utDCX] = ConstantPropagation::propagate(dcx, 1 << size_ut, dcxTable);
-    auto [newQc2, utCXCX] = ConstantPropagation::propagate(doubleCx, 1 << size_ut, cxcxTable);
+    ConstantPropagation::propagate(dcx, 1 << size_ut, dcxTable);
+    ConstantPropagation::propagate(doubleCx, 1 << size_ut, cxcxTable);
 
-    CAPTURE(utDCX->to_string());
-    CAPTURE(utCXCX->to_string());
+    CAPTURE(dcxTable->to_string());
+    CAPTURE(cxcxTable->to_string());
 
-    approxUnionTable(utDCX, utCXCX);
+    approxUnionTable(dcxTable, cxcxTable);
 }
 
 TEST_CASE("Test ECR") {
@@ -374,7 +374,7 @@ TEST_CASE("Test ECR") {
     ecr.x(2, {1});
     ecr.ecr(1, 2);
 
-    auto [newQc, ut] = ConstantPropagation::propagate(ecr, 1 << size_ut);
+    auto ut = ConstantPropagation::propagate(ecr, 1 << size_ut);
 
     REQUIRE(!ut->isTop(1));
     REQUIRE(!ut->isTop(2));
@@ -422,7 +422,9 @@ TEST_CASE("Test RXX, RYY") {
 
     CAPTURE(startUT->to_string());
 
-    auto [qc, actual] = ConstantPropagation::propagate(I, 1 << size_ut, startUT);
+    auto actual = startUT->clone();
+
+    ConstantPropagation::propagate(I, 1 << size_ut, actual);
 
     for (size_t i = 1; i < size_ut; i++) {
         startUT->combine(0, i);

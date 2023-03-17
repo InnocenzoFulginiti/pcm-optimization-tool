@@ -9,6 +9,10 @@
 #define CIRCUITS_PATH "../test/circuits/"
 #define QASM_Bench_Path CIRCUITS_PATH "QASMBench"
 
+#ifndef GIT_COMMIT_HASH
+#define GIT_COMMIT_HASH "?"
+#endif
+
 #include <filesystem>
 #include <string>
 

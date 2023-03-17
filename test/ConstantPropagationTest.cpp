@@ -25,14 +25,12 @@ void testIntermediateResults(qc::QuantumComputation &qc,
             gateIndex++;
         }
 
-        auto [opt, table] = ConstantPropagation::propagate(qcSection, maxAmplitudes, currentTable);
-        currentTable = table;
+        ConstantPropagation::propagate(qcSection, maxAmplitudes, currentTable);
 
         std::vector<size_t> controls;
         for (auto c: lastGateIter->get()->getControls()) {
             controls.push_back(c.qubit);
         }
-
 
         INFO("Last Gate was " + lastGateIter->get()->getName() + " with target " +
              std::to_string(lastGateIter->get()->getTargets().begin()[0]) + " and controls {" +
@@ -68,8 +66,7 @@ TEST_CASE("Try SWAP") {
     qc.swap(0, 1);
 
     INFO("Circuit: h[0]; swap[0,1]");
-    auto res = ConstantPropagation::propagate(qc, 3);
-    auto table = res.second;
+    auto table = ConstantPropagation::propagate(qc, 3);
 
     INFO("Table: " + table->to_string());
     REQUIRE((*table)[0].isQubitState());
@@ -166,10 +163,7 @@ TEST_CASE("Check Intermediate Results error_correctiond3_n5") {
 TEST_CASE("Try file with Classic Controlled gates") {
     auto classicControls = "../test/circuits/QASMBench/small/shor_n5/shor_n5.qasm";
     qc::QuantumComputation qc(classicControls);
-
-    std::pair<qc::QuantumComputation, std::shared_ptr<UnionTable>> result;
-
-    CHECK_NOTHROW(result = ConstantPropagation::propagate(qc, 1024));
+    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 1024));
 }
 
 TEST_CASE("Try specific file") {
