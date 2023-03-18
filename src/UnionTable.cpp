@@ -234,6 +234,10 @@ bool UnionTable::isAlwaysZero(size_t q) {
 
 std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std::vector<size_t> controls) {
     //If there is a control state that is always 0 --> never activated
+    if (controls.empty()) {
+        return {ActivationState::ALWAYS, {}};
+    }
+
     for (size_t control: controls) {
         if (isAlwaysZero(control)) {
             return {ActivationState::NEVER, {}};
