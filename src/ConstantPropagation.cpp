@@ -77,6 +77,8 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     table->setTop(t);
                 }
             }
+
+            newQc.emplace_back(op->clone());
             continue;
         }
 
@@ -93,9 +95,9 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
 
         if (act == NEVER) {
             continue;
-        } else {
-            newQc.emplace_back(op->clone());
         }
+
+        newQc.emplace_back(op->clone());
 
         if (op->getType() == qc::SWAP) {
             //Handle SWAP as compound Gate
@@ -135,6 +137,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 table->setTop(t);
             }
 
+            newQc.emplace_back(op->clone());
             continue;
         }
 
@@ -188,6 +191,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             }
         }
     } //Loop over Gates
+
+    qc.clear();
+
+    for (auto &op: newQc) {
+        qc.emplace_back(op->clone());
+    }
 }
 
 std::shared_ptr<UnionTable> ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes) {
