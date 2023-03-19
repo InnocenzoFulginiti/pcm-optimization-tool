@@ -130,6 +130,45 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
     }
 }
 
+void
+processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compareOut, size_t maxNAmpls, double eps) {
+    runtimeOut << GIT_COMMIT_HASH << ";" << file.string() << ";" << maxNAmpls << ";" << eps;
+
+    tp start = c::steady_clock::now();
+    qc::QuantumComputation qc;
+
+    try {
+        qc = qc::QuantumComputation(file.string());
+    } catch (std::exception &e) {
+        runtimeOut << ", qfr threw an exception while importing: " << e.what() << "\n";
+        return;
+    }
+
+    tp end = c::steady_clock::now();
+    long long dur = c::duration_cast<c::microseconds>(end - start).count();
+
+    std::cout << ", nOps=" << qc.getNops();
+    std::cout.flush();
+
+    //parseTime,nQubits,nOpsStart
+    runtimeOut << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
+
+    qc::QuantumComputation before = qc.clone();
+
+    runBenchmark(qc, maxNAmpls, runtimeOut);
+    runtimeOut.flush();
+
+    if (COMPARE) {
+        qc::CircuitOptimizer::flattenOperations(before);
+        compareQcs(file, before, qc, compareOut);
+        compareOut.flush();
+    }
+
+    end = c::steady_clock::now();
+    dur = c::duration_cast<c::microseconds>(end - start).count();
+    std::cout << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
+}
+
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
@@ -156,10 +195,10 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         compareOut << REDUCTION_HEADER << std::endl;
     }
 
-    auto fileGen = QASMFileGenerator(QASMFileGenerator::ALL);
+    auto fileGen = QASMFileGenerator(QASMFileGenerator::SMALL);
 
     size_t i = 0;
-    size_t limit = 250;
+    size_t limit = 5;
 
     size_t maxNAmpls = 1024;
     double eps = 0.0;
@@ -171,44 +210,9 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         now_tm = *std::localtime(&now_c);
         std::strftime(dateTime, 80, "%H:%M:%S", &now_tm);
-
         std::cout << "[" << i << "/" << fileGen.getSize() << "], " << std::string(dateTime) << ": " << file.string();
 
-        runtimeOut << GIT_COMMIT_HASH << ";" << file.string() << ";" << maxNAmpls << ";" << eps;
-
-        tp start = c::steady_clock::now();
-        qc::QuantumComputation qc;
-
-        try {
-            qc = qc::QuantumComputation(file.string());
-        } catch (std::exception &e) {
-            runtimeOut << ", qfr threw an exception while importing: " << e.what() << "\n";
-            continue;
-        }
-
-        tp end = c::steady_clock::now();
-        long long dur = c::duration_cast<c::microseconds>(end - start).count();
-
-        std::cout << ", nOps=" << qc.getNops();
-        std::cout.flush();
-
-        //parseTime,nQubits,nOpsStart
-        runtimeOut << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
-
-        qc::QuantumComputation before = qc.clone();
-
-        runBenchmark(qc, maxNAmpls, runtimeOut);
-        runtimeOut.flush();
-
-        if (COMPARE) {
-            qc::CircuitOptimizer::flattenOperations(before);
-            compareQcs(file, before, qc, compareOut);
-            compareOut.flush();
-        }
-
-        end = c::steady_clock::now();
-        dur = c::duration_cast<c::microseconds>(end - start).count();
-        std::cout << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
+        processFile(file, runtimeOut, compareOut, maxNAmpls, eps);
     }
 
     compareOut.close();
