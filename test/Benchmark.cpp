@@ -156,7 +156,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         compareOut << REDUCTION_HEADER << std::endl;
     }
 
-    auto fileGen = qasmFile(QASMFileGenerator::ALL);
+    auto fileGen = QASMFileGenerator(QASMFileGenerator::ALL);
 
     size_t i = 0;
     size_t limit = 250;
@@ -172,7 +172,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         now_tm = *std::localtime(&now_c);
         std::strftime(dateTime, 80, "%H:%M:%S", &now_tm);
 
-        std::cout << std::string(dateTime) << ": " << file.string();
+        std::cout << "[" << i << "/" << fileGen.getSize() << "], " << std::string(dateTime) << ": " << file.string();
 
         runtimeOut << GIT_COMMIT_HASH << ";" << file.string() << ";" << maxNAmpls << ";" << eps;
 

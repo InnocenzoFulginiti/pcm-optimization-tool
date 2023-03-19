@@ -199,7 +199,9 @@ QASMFileGenerator::QASMFileGenerator(QASMFileGenerator::SIZE s) {
             break;
     }
 
-    UNSCOPED_INFO("Number of Files found: " + std::to_string(unused.size()));
+    size = unused.size();
+
+    UNSCOPED_INFO("Number of Files found: " + std::to_string(size));
 }
 
 bool QASMFileGenerator::next() {

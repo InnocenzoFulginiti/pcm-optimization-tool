@@ -52,8 +52,6 @@ void compareUnitTableToState(const std::shared_ptr<UnionTable> &ut,
 namespace fs = std::filesystem;
 
 class QASMFileGenerator : public Catch::Generators::IGenerator<fs::path> {
-    std::vector<fs::path> unused;
-
 public:
     enum SIZE {
         SMALL,
@@ -68,8 +66,15 @@ public:
 
     explicit QASMFileGenerator(SIZE s);
 
-private:
+    size_t getSize() const {
+        return size;
+    }
+
     bool next() override;
+
+private:
+    std::vector<fs::path> unused;
+    size_t size;
 
     std::string stringifyImpl() const override;
 
