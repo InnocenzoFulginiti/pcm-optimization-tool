@@ -130,7 +130,6 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
     }
 }
 
-//2:30h on lxhalle
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
@@ -157,14 +156,15 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         compareOut << REDUCTION_HEADER << std::endl;
     }
 
-    auto fileGen = qasmFile(QASMFileGenerator::SMALL);
+    auto fileGen = qasmFile(QASMFileGenerator::ALL);
 
     size_t i = 0;
-    size_t limit = 20;
+    size_t limit = 250;
 
     size_t maxNAmpls = 1024;
     double eps = 0.0;
 
+    Complex::setEpsilon(eps);
     while (fileGen.next() && i++ < limit) {
         const fs::path &file = fileGen.get();
 
