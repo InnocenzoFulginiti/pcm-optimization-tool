@@ -3,6 +3,12 @@
 #include <chrono>
 #include <fstream>
 
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 
 namespace c = std::chrono;
@@ -14,6 +20,73 @@ using tp = std::chrono::steady_clock::time_point;
 #define BENCHMARK_FOLDER "..//benchmark-results"
 
 #define COMPARE true
+#define MULTITHREAD true
+
+class ThreadPool {
+public:
+    explicit ThreadPool(size_t numThreads) {
+        for (size_t i = 0; i < numThreads; i++) {
+            m_workers.emplace_back([this]() {
+                while (true) {
+                    std::function<void()> task;
+                    {
+                        std::unique_lock<std::mutex> lock(m_mutex);
+                        m_condition.wait(lock, [this]() {
+                            return !m_tasks.empty() || m_stop;
+                        });
+                        if (m_stop && m_tasks.empty()) {
+                            return;
+                        }
+                        task = std::move(m_tasks.front());
+                        m_tasks.pop();
+                        std::cout << m_tasks.size() << " left" << std::endl;
+                    }
+                    task();
+                }
+            });
+        }
+    }
+
+    ~ThreadPool() {
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_stop = true;
+        }
+        m_condition.notify_all();
+        for (std::thread &worker: m_workers) {
+            worker.join();
+        }
+    }
+
+    size_t size() {
+        return m_workers.size();
+    }
+
+    template<class F, class... Args>
+    auto enqueue(F &&f, Args &&... args) -> std::future<decltype(f(args...))> {
+        using return_type = decltype(f(args...));
+        auto task = std::make_shared<std::packaged_task<return_type()>>([Func = std::forward<F>(f)] { return Func(); });
+        std::future<return_type> result = task->get_future();
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            if (m_stop) {
+                throw std::runtime_error("enqueue on stopped ThreadPool");
+            }
+            m_tasks.emplace([task]() {
+                (*task)();
+            });
+        }
+        m_condition.notify_one();
+        return result;
+    }
+
+private:
+    std::vector<std::thread> m_workers;
+    std::queue<std::function<void()>> m_tasks;
+    std::mutex m_mutex;
+    std::condition_variable m_condition;
+    bool m_stop = false;
+};
 
 void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out) {
     tp start, end;
@@ -147,9 +220,6 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     tp end = c::steady_clock::now();
     long long dur = c::duration_cast<c::microseconds>(end - start).count();
 
-    std::cout << ", nOps=" << qc.getNops();
-    std::cout.flush();
-
     //parseTime,nQubits,nOpsStart
     runtimeOut << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
 
@@ -166,7 +236,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
 
     end = c::steady_clock::now();
     dur = c::duration_cast<c::microseconds>(end - start).count();
-    std::cout << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
+    std::cout << file.string() << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
@@ -195,7 +265,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         compareOut << REDUCTION_HEADER << std::endl;
     }
 
-    auto fileGen = QASMFileGenerator(QASMFileGenerator::SMALL);
+    auto fileGen = QASMFileGenerator(QASMFileGenerator::ALL);
 
     size_t i = 0;
     size_t limit = 5;
@@ -204,15 +274,21 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     double eps = 0.0;
 
     Complex::setEpsilon(eps);
+
+    ThreadPool pool(MULTITHREAD ? std::min(std::thread::hardware_concurrency(), static_cast<unsigned int>(6)) : 1);
+    std::cout << "Using " << pool.size() << " threads" << std::endl;
+    std::vector<std::future<void>> futures;
+
     while (fileGen.next() && i++ < limit) {
         const fs::path &file = fileGen.get();
 
-        now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        now_tm = *std::localtime(&now_c);
-        std::strftime(dateTime, 80, "%H:%M:%S", &now_tm);
-        std::cout << "[" << i << "/" << fileGen.getSize() << "], " << std::string(dateTime) << ": " << file.string();
+        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, eps] {
+            processFile(file, runtimeOut, compareOut, maxNAmpls, eps);
+        }));
+    }
 
-        processFile(file, runtimeOut, compareOut, maxNAmpls, eps);
+    for (auto &future: futures) {
+        future.wait();
     }
 
     compareOut.close();
