@@ -15,9 +15,6 @@ using tp = std::chrono::steady_clock::time_point;
 
 #define COMPARE true
 
-#define RUNTIME_OUTPUT BENCHMARK_FOLDER "runtime-"
-#define REDUCTION_OUTPUT BENCHMARK_FOLDER "reduction"
-
 void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out) {
     tp start, end;
     long long dur;
@@ -59,14 +56,17 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
 
     while (beforeIt != before.end()) {
         //Check if the operations are the same
-        if (beforeIt->get()->getType() == afterIt->get()->getType() && //Same Type
-            beforeIt->get()->getTargets() == afterIt->get()->getTargets() && //Same Targets
-            //Controls are subset
-            std::includes(beforeIt->get()->getControls().begin(), beforeIt->get()->getControls().end(),
-                          afterIt->get()->getControls().begin(), afterIt->get()->getControls().end(),
-                          [](auto a, auto b) {
-                              return a == b;
-                          })) {
+        bool sameType = beforeIt->get()->getType() == afterIt->get()->getType();
+        bool sameTargets = beforeIt->get()->getTargets() == afterIt->get()->getTargets();
+        bool controlsSubset = std::includes(beforeIt->get()->getControls().begin(),
+                                            beforeIt->get()->getControls().end(),
+                                            afterIt->get()->getControls().begin(), afterIt->get()->getControls().end(),
+                                            [](const qc::Control &a, const qc::Control &b) {
+                                                return a.qubit < b.qubit;
+                                            });
+
+
+        if (sameType && sameTargets && controlsSubset) {
             //Same Gate
             if (beforeIt->get()->getNcontrols() > afterIt->get()->getNcontrols()) {
                 //Something was optimized
@@ -157,10 +157,10 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         compareOut << REDUCTION_HEADER << std::endl;
     }
 
-    auto fileGen = qasmFile(QASMFileGenerator::ALL);
+    auto fileGen = qasmFile(QASMFileGenerator::SMALL);
 
     size_t i = 0;
-    size_t limit = 250;
+    size_t limit = 20;
 
     size_t maxNAmpls = 1024;
     double eps = 0.0;
@@ -201,6 +201,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         runtimeOut.flush();
 
         if (COMPARE) {
+            qc::CircuitOptimizer::flattenOperations(before);
             compareQcs(file, before, qc, compareOut);
             compareOut.flush();
         }
