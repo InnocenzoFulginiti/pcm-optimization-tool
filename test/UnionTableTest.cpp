@@ -395,6 +395,8 @@ TEST_CASE("Test ECR") {
 }
 
 TEST_CASE("Test RXX, RYY") {
+    int seed = GENERATE(take(5, random(0, 1000000)));
+    CAPTURE(seed);
     size_t size_ut = 4;
     qc::QuantumComputation I(size_ut);
     //Entangle qubits
@@ -418,7 +420,7 @@ TEST_CASE("Test RXX, RYY") {
     I.h(1);
     I.h(2);
 
-    auto startUT = generateRandomUnionTable(size_ut);
+    auto startUT = generateRandomUnionTable(size_ut, seed);
 
     CAPTURE(startUT->to_string());
 
@@ -426,8 +428,14 @@ TEST_CASE("Test RXX, RYY") {
 
     ConstantPropagation::propagate(I, 1 << size_ut, actual);
 
-    for (size_t i = 1; i < size_ut; i++) {
-        startUT->combine(0, i);
+
+    startUT->combine(1, 2);
+    if (!startUT->isTop(0)) {
+        startUT->combine(0, 1);
+    }
+
+    if (!startUT->isTop(3)) {
+        startUT->combine(3, 2);
     }
 
     INFO("Combined:");
