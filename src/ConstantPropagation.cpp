@@ -82,19 +82,30 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             continue;
         }
 
+        if (op->getType() == qc::Measure) {
+            auto nonUni = dynamic_cast<qc::NonUnitaryOperation *>(op);
+
+            for (auto const t: nonUni->getTargets()) {
+                table->setTop(t);
+            }
+
+            newQc.emplace_back(op->clone());
+            continue;
+        }
+
         std::vector<size_t> controls{};
         for (qc::Control c: op->getControls())
             controls.emplace_back(c.qubit);
 
         auto [act, min] = table->minimizeControls(controls);
 
+        if (act == NEVER) {
+            continue;
+        }
+
         op->getControls().clear();
         for (auto c: min) {
             op->getControls().insert({static_cast<unsigned int>(c)});
-        }
-
-        if (act == NEVER) {
-            continue;
         }
 
         newQc.emplace_back(op->clone());
@@ -127,17 +138,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     checkAmplitude(table, maxAmplitudes, i);
                 }
             }
-            continue;
-        }
-
-        if (op->getType() == qc::Measure) {
-            auto nonUni = dynamic_cast<qc::NonUnitaryOperation *>(op);
-
-            for (auto const t: nonUni->getTargets()) {
-                table->setTop(t);
-            }
-
-            newQc.emplace_back(op->clone());
             continue;
         }
 

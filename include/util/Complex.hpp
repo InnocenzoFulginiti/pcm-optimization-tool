@@ -38,7 +38,7 @@ public:
      * @return
      */
 
-    double abs() const {
+    [[nodiscard]] double abs() const {
         return std::abs(value);
     }
 
@@ -109,19 +109,33 @@ public:
     }
 
     [[nodiscard]] bool isZero() const {
-        return this->abs() == 0.0;
+        return this->abs() <= epsilon;
     }
 
     [[nodiscard]] Complex exp() const {
         return Complex(std::exp(this->value));
     }
 
-
     //to_string
     [[nodiscard]] std::string to_string() const {
-        return std::to_string(value.real()) + ((value.imag() < 0)? "" : "+") + std::to_string(value.imag()) + "i";
+        return std::to_string(value.real()) + ((value.imag() < 0) ? "" : "+") + std::to_string(value.imag()) + "i";
     }
+
+    /**
+     * Sets epsilon, value used to decide if a complex number is zero or
+     * two numbers are equal
+     * @param epsilon
+     */
+    static void setEpsilon(double eps) {
+        Complex::epsilon = eps;
+    }
+
+    [[nodiscard]] static double getEpsilon() {
+        return epsilon;
+    }
+
 private:
+    static double epsilon;
     std::complex<double> value;
 
 };
