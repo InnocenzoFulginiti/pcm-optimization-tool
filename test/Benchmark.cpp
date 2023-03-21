@@ -16,7 +16,7 @@ using tp = std::chrono::steady_clock::time_point;
 
 #define RUNTIME_HEADER "file;parseTime;nQubits;nOpsStart;flattenTime;nOpsInlined;propagateTime;nOpsAfterProp;wasTop"
 #define REDUCTION_HEADER "file;type;iBf;iAf;ctrBf;ctrAf;targets"
-#define INFO_HEADER "commit;nMaxAmpls;threshold"
+#define INFO_HEADER "commit;nMaxAmpls;threshold;start;finish"
 
 #define BENCHMARK_FOLDER "..//benchmark-results"
 #define INFO_FILENAME "info.csv"
@@ -25,9 +25,6 @@ using tp = std::chrono::steady_clock::time_point;
 
 #define COMPARE true
 #define MULTITHREAD true
-
-#define BENCH_MAX_AMPLITUDES 1024
-#define BENCH_EPSILON 0.0
 
 class ThreadPool {
 public:
@@ -153,28 +150,28 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
                 //fileName
                 std::stringstream ss;
                 ss << file.string() << ";"
-                  //type
-                  << qc::toString(beforeIt->get()->getType()) << ";"
-                  //beforeIndex
-                  << beforeIndex << ";"
-                  //afterIndex
-                  << afterIndex << ";"
-                  //BeforeControls
-                  << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
-                                            beforeIt->get()->getControls().end(),
-                                            std::string(), [](const auto &a, const qc::Control &b) {
+                   //type
+                   << qc::toString(beforeIt->get()->getType()) << ";"
+                   //beforeIndex
+                   << beforeIndex << ";"
+                   //afterIndex
+                   << afterIndex << ";"
+                   //BeforeControls
+                   << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
+                                             beforeIt->get()->getControls().end(),
+                                             std::string(), [](const auto &a, const qc::Control &b) {
                             return a + std::to_string(b.qubit) + ",";
                         }) << "];"
-                  //afterControls
-                  << "[" << std::accumulate(afterIt->get()->getControls().begin(),
-                                            afterIt->get()->getControls().end(),
-                                            std::string(), [](const auto &a, const qc::Control &b) {
+                   //afterControls
+                   << "[" << std::accumulate(afterIt->get()->getControls().begin(),
+                                             afterIt->get()->getControls().end(),
+                                             std::string(), [](const auto &a, const qc::Control &b) {
                             return a + std::to_string(b.qubit) + ",";
                         }) << "];"
-                  //Targets
-                  << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
-                                            beforeIt->get()->getTargets().end(),
-                                            std::string(), [](const auto &a, const auto &b) {
+                   //Targets
+                   << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
+                                             beforeIt->get()->getTargets().end(),
+                                             std::string(), [](const auto &a, const auto &b) {
                             return a + std::to_string(b) + ",";
                         }) << "]\n";
 
@@ -187,24 +184,24 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
             //Not the same gate. Something was removed
             std::stringstream ss;
             ss << file.string() << ";"
-              //type
-              << qc::toString(beforeIt->get()->getType()) << ";"
-              //beforeIndex
-              << beforeIndex << ";"
-              //afterIndex
-              << "-1;"
-              //BeforeControls
-              << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
-                                        beforeIt->get()->getControls().end(),
-                                        std::string(), [](const auto &a, const qc::Control &b) {
+               //type
+               << qc::toString(beforeIt->get()->getType()) << ";"
+               //beforeIndex
+               << beforeIndex << ";"
+               //afterIndex
+               << "-1;"
+               //BeforeControls
+               << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
+                                         beforeIt->get()->getControls().end(),
+                                         std::string(), [](const auto &a, const qc::Control &b) {
                         return a + std::to_string(b.qubit) + ",";
                     }) << "];"
-              //afterControls
-              << "[];"
-              //Targets
-              << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
-                                        beforeIt->get()->getTargets().end(),
-                                        std::string(), [](const auto &a, const auto &b) {
+               //afterControls
+               << "[];"
+               //Targets
+               << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
+                                         beforeIt->get()->getTargets().end(),
+                                         std::string(), [](const auto &a, const auto &b) {
                         return a + std::to_string(b) + ",";
                     }) << "]\n";
             s << ss.str();
@@ -218,7 +215,7 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
 void
 processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compareOut, size_t maxNAmpls) {
     std::stringstream line;
-     line << file.string();
+    line << file.string();
 
     tp start = c::steady_clock::now();
     qc::QuantumComputation qc;
@@ -253,7 +250,9 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     std::cout << file.string() << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
 }
 
-TEST_CASE("Test Circuit Performance", "[!benchmark]") {
+void benchmarkParameters(size_t maxNAmpls, double threshold) {
+    std::cout << "Benchmarking with maxNAmpls=" << maxNAmpls << " and threshold=" << threshold << std::endl;
+
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
     std::tm now_tm = *std::localtime(&now_c);
@@ -270,7 +269,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
 
     std::ofstream infoOut(infoFileName, std::ios::out | std::ios::trunc);
     infoOut << INFO_HEADER << std::endl;
-    infoOut << GIT_COMMIT_HASH << ";" << BENCH_MAX_AMPLITUDES << ";" << BENCH_EPSILON << std::endl;
+    infoOut << GIT_COMMIT_HASH << ";" << maxNAmpls << ";" << threshold << ";" << std::string(dateTime) << ";";
     infoOut.flush();
     infoOut.close();
 
@@ -294,10 +293,7 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     size_t i = 0;
     size_t limit = 250;
 
-    size_t maxNAmpls = BENCH_MAX_AMPLITUDES;
-    double eps = BENCH_EPSILON;
-
-    Complex::setEpsilon(eps);
+    Complex::setEpsilon(threshold);
 
     ThreadPool pool(MULTITHREAD ? std::thread::hardware_concurrency() : 1);
     std::cout << "Using " << pool.size() << " threads" << std::endl;
@@ -311,8 +307,13 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
         }));
     }
 
+    size_t joined = 0;
+    std::stringstream ss;
     for (auto &future: futures) {
         future.wait();
+        ss << "Joined up " << ++joined << "/ " << pool.size() << " threads" << std::endl;
+        std::cout << ss.str();
+        ss.clear();
     }
 
     compareOut.close();
@@ -322,4 +323,16 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     now_tm = *std::localtime(&now_c);
     std::strftime(dateTime, 80, "%H:%M:%S", &now_tm);
     std::cout << "Finished at " << std::string(dateTime) << std::endl;
+
+    std::ofstream infoAppend(infoFileName, std::ios::out | std::ios::app);
+    infoAppend << dateTime << std::endl;
+    infoAppend.flush();
+    infoAppend.close();
+}
+
+TEST_CASE("Test Circuit Performance", "[!benchmark]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(16), 128, 256);
+    double threshold = GENERATE(1e-1, 1e-3, 1e-6);
+
+    benchmarkParameters(maxNAmpls, threshold);
 }
