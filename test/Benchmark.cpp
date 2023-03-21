@@ -14,13 +14,20 @@
 namespace c = std::chrono;
 using tp = std::chrono::steady_clock::time_point;
 
-#define RUNTIME_HEADER "commit;file;maxNAmpls;eps;parseTime;nQubits;nOpsStart;flattenTime;nOpsInlined;propagateTime;nOpsAfterProp;wasTop"
+#define RUNTIME_HEADER "file;parseTime;nQubits;nOpsStart;flattenTime;nOpsInlined;propagateTime;nOpsAfterProp;wasTop"
 #define REDUCTION_HEADER "file;type;iBf;iAf;ctrBf;ctrAf;targets"
+#define INFO_HEADER "commit;nMaxAmpls;threshold"
 
 #define BENCHMARK_FOLDER "..//benchmark-results"
+#define INFO_FILENAME "info.csv"
+#define REDUCTION_FILENAME "reduction.csv"
+#define RUNTIME_FILENAME "runtime.csv"
 
 #define COMPARE true
 #define MULTITHREAD true
+
+#define BENCH_MAX_AMPLITUDES 1024
+#define BENCH_EPSILON 0.01
 
 class ThreadPool {
 public:
@@ -39,7 +46,7 @@ public:
                         }
                         task = std::move(m_tasks.front());
                         m_tasks.pop();
-                        std::cout << m_tasks.size() << " left" << std::endl;
+                        std::cout << m_tasks.size() << " left in queue" << std::endl;
                     }
                     task();
                 }
@@ -144,7 +151,8 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
             if (beforeIt->get()->getNcontrols() > afterIt->get()->getNcontrols()) {
                 //Something was optimized
                 //fileName
-                s << file.string() << ";"
+                std::stringstream ss;
+                ss << file.string() << ";"
                   //type
                   << qc::toString(beforeIt->get()->getType()) << ";"
                   //beforeIndex
@@ -169,13 +177,16 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
                                             std::string(), [](const auto &a, const auto &b) {
                             return a + std::to_string(b) + ",";
                         }) << "]\n";
+
+                s << ss.str();
             }
 
             afterIt++;
             afterIndex++;
         } else {
             //Not the same gate. Something was removed
-            s << file.string() << ";"
+            std::stringstream ss;
+            ss << file.string() << ";"
               //type
               << qc::toString(beforeIt->get()->getType()) << ";"
               //beforeIndex
@@ -196,6 +207,7 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
                                         std::string(), [](const auto &a, const auto &b) {
                         return a + std::to_string(b) + ",";
                     }) << "]\n";
+            s << ss.str();
         }
 
         beforeIt++;
@@ -204,8 +216,9 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
 }
 
 void
-processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compareOut, size_t maxNAmpls, double eps) {
-    runtimeOut << GIT_COMMIT_HASH << ";" << file.string() << ";" << maxNAmpls << ";" << eps;
+processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compareOut, size_t maxNAmpls) {
+    std::stringstream line;
+     line << file.string();
 
     tp start = c::steady_clock::now();
     qc::QuantumComputation qc;
@@ -213,7 +226,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     try {
         qc = qc::QuantumComputation(file.string());
     } catch (std::exception &e) {
-        runtimeOut << ", qfr threw an exception while importing: " << e.what() << "\n";
+        line << "; qfr threw an exception while importing: " << e.what() << ";;;;;;;\n";
         return;
     }
 
@@ -221,11 +234,12 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     long long dur = c::duration_cast<c::microseconds>(end - start).count();
 
     //parseTime,nQubits,nOpsStart
-    runtimeOut << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
+    line << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
 
     qc::QuantumComputation before = qc.clone();
 
-    runBenchmark(qc, maxNAmpls, runtimeOut);
+    runBenchmark(qc, maxNAmpls, line);
+    runtimeOut << line.str();
     runtimeOut.flush();
 
     if (COMPARE) {
@@ -248,11 +262,20 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::setlocale(LC_TIME, "C");
     std::strftime(dateTime, 80, "%Y-%m-%d-%H-%M-%S", &now_tm);
 
-    fs::path benchmarkFolder = BENCHMARK_FOLDER;
+    fs::path benchmarkFolder = BENCHMARK_FOLDER "//" + std::string(dateTime);
     create_directories(benchmarkFolder);
 
-    std::string runtimeFileName = BENCHMARK_FOLDER "//runtime-" + std::string(dateTime) + ".csv";
-    std::cout << "Writing to:" << runtimeFileName << std::endl;
+    std::string infoFileName = benchmarkFolder.string() + "//" + INFO_FILENAME;
+    std::cout << "Writing to: " << infoFileName << std::endl;
+
+    std::ofstream infoOut(infoFileName, std::ios::out | std::ios::trunc);
+    infoOut << INFO_HEADER << std::endl;
+    infoOut << GIT_COMMIT_HASH << ";" << BENCH_MAX_AMPLITUDES << ";" << BENCH_EPSILON << std::endl;
+    infoOut.flush();
+    infoOut.close();
+
+    std::string runtimeFileName = benchmarkFolder.string() + "//" + RUNTIME_FILENAME;
+    std::cout << "Writing to: " << runtimeFileName << std::endl;
 
     std::ofstream runtimeOut(runtimeFileName, std::ios::out | std::ios::trunc);
     runtimeOut << RUNTIME_HEADER << std::endl;
@@ -260,30 +283,31 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::ofstream compareOut;
 
     if (COMPARE) {
-        std::string compareFileName = BENCHMARK_FOLDER "//compare-" + std::string(dateTime) + ".csv";
+        std::string compareFileName = benchmarkFolder.string() + "//" + REDUCTION_FILENAME;
         compareOut.open(compareFileName, std::ios::out | std::ios::trunc);
         compareOut << REDUCTION_HEADER << std::endl;
+        std::cout << "Writing to: " << compareFileName << std::endl;
     }
 
     auto fileGen = QASMFileGenerator(QASMFileGenerator::ALL);
 
     size_t i = 0;
-    size_t limit = 5;
+    size_t limit = 250;
 
-    size_t maxNAmpls = 1024;
-    double eps = 0.0;
+    size_t maxNAmpls = BENCH_MAX_AMPLITUDES;
+    double eps = BENCH_EPSILON;
 
     Complex::setEpsilon(eps);
 
-    ThreadPool pool(MULTITHREAD ? std::min(std::thread::hardware_concurrency(), static_cast<unsigned int>(6)) : 1);
+    ThreadPool pool(MULTITHREAD ? std::thread::hardware_concurrency() : 1);
     std::cout << "Using " << pool.size() << " threads" << std::endl;
     std::vector<std::future<void>> futures;
 
     while (fileGen.next() && i++ < limit) {
         const fs::path &file = fileGen.get();
 
-        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, eps] {
-            processFile(file, runtimeOut, compareOut, maxNAmpls, eps);
+        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls] {
+            processFile(file, runtimeOut, compareOut, maxNAmpls);
         }));
     }
 
