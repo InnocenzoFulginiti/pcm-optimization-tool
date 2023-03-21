@@ -122,11 +122,12 @@ public:
     static std::shared_ptr<QubitState>
     fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits);
 
+    void removeZeroEntries();
+
 private:
     size_t nQubits;
     std::unordered_map<BitSet, Complex> map;
 
-    void removeZeroEntries();
 };
 
 enum TOP {

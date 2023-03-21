@@ -12,6 +12,63 @@ TEST_CASE("QubitState normalization example") {
     REQUIRE(qs.norm() == Catch::Approx(1.0));
 }
 
+TEST_CASE("removeZeroEntries preserves norm") {
+    QubitState qs(2);
+    qs[BitSet(2, 0)] = Complex(0.5, 0);
+    qs[BitSet(2, 1)] = Complex(0.5, 0);
+    qs[BitSet(2, 2)] = Complex(SQRT_2_2, 0);
+
+    REQUIRE(qs.norm() == Catch::Approx(1.0).margin(1e-10));
+
+    INFO("Before:");
+    CAPTURE(qs.to_string());
+
+    double epsilon = Complex::getEpsilon();
+    Complex::setEpsilon(0.6);
+    qs.removeZeroEntries();
+    Complex::setEpsilon(epsilon);
+
+    INFO("After:");
+    CAPTURE(qs.to_string());
+
+    REQUIRE(qs.norm() == Catch::Approx(1.0).margin(1e-10));
+}
+
+TEST_CASE("QubitState::removeZeroEntries keeps normalization") {
+    size_t size = static_cast<size_t>(GENERATE(take(10, random(1, 4))));
+    unsigned int seed = static_cast<unsigned int>(GENERATE(take(10, random(0, 1000000))));
+
+    CAPTURE(size, seed);
+
+    auto qs = generateRandomState(size, seed);
+
+
+    //Range: 10^[-10;-0.1] = [1e-10; ~0.8]
+    double exp = GENERATE(take(10, random(-10.0, -0.1)));
+    double epsilon = pow(5, exp);
+
+    CAPTURE(epsilon);
+
+    double oldEps = Complex::getEpsilon();
+
+
+    REQUIRE(qs->norm() == Catch::Approx(1.0).margin(1e-10));
+
+    INFO("Before:");
+    CAPTURE(qs->to_string());
+
+    Complex::setEpsilon(epsilon);
+
+    qs->removeZeroEntries();
+
+    Complex::setEpsilon(oldEps);
+
+    INFO("After:");
+    CAPTURE(qs->to_string());
+
+    REQUIRE(qs->norm() == Catch::Approx(1.0).margin(1e-10));
+}
+
 TEST_CASE("QubitState normalization random test") {
     //Generate 4*4*4*4 = 256 doubles
     auto p1 = GENERATE(take(4, random(-10.0, 10.0)));
@@ -96,20 +153,9 @@ TEST_CASE("Test Gate Identities") {
     std::array<Complex, 4> T = {1, 0, 0, Complex(SQRT_2_2, SQRT_2_2)};
 
     size_t nQubits = static_cast<size_t>(GENERATE(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+    unsigned int seed = static_cast<unsigned int>(GENERATE(take(10, random(0, 10000))));
 
-    auto qs = std::make_shared<QubitState>(nQubits);
-    qs->clear();
-
-    for (size_t key = 0; key < (static_cast<size_t>(1) << (nQubits - 1)); key++) {
-        //Generate Amplitudes for 2/3 of keys
-        if (rand() % 3 > 0) {
-            (*qs)[BitSet(nQubits, key)] = Complex(rand() % 100, rand() % 100);
-        } else {
-            continue;
-        }
-    }
-
-    qs->normalize();
+    auto qs = generateRandomState(nQubits, seed);
 
     for (size_t target = 0; target < nQubits; target++) {
         SECTION("I = I") {

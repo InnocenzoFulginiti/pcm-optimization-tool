@@ -46,9 +46,7 @@ double QubitState::norm() const {
 void QubitState::normalize() {
     double norm = this->norm();
     norm = sqrt(norm);
-    for (auto &[key, val]: this->map) {
-        val /= norm;
-    }
+    this->operator*=(1 / norm);
 }
 
 void QubitState::swapIndex(size_t q1, size_t q2) {
@@ -245,7 +243,9 @@ void QubitState::removeZeroEntries() {
     auto it = this->map.begin();
     while (it != this->map.end()) {
         if (it->second.isZero()) {
+            double scale = it->second.norm();
             it = this->map.erase(it);
+            (*this) *= 1 / sqrt(1 - scale);
         } else {
             it++;
         }
