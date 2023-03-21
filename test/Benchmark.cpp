@@ -121,10 +121,9 @@ void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &ou
 
     //wasTop
     out << ";" << wasTop << std::endl;
-    out.flush();
 }
 
-void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s) {
+void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s, std::mutex &c_m) {
     auto beforeIt = before.begin();
     auto afterIt = after.begin();
 
@@ -175,6 +174,7 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
                             return a + std::to_string(b) + ",";
                         }) << "]\n";
 
+                std::lock_guard<std::mutex> lock(c_m);
                 s << ss.str();
             }
 
@@ -204,6 +204,7 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
                                          std::string(), [](const auto &a, const auto &b) {
                         return a + std::to_string(b) + ",";
                     }) << "]\n";
+            std::lock_guard<std::mutex> lock(c_m);
             s << ss.str();
         }
 
@@ -213,7 +214,8 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
 }
 
 void
-processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compareOut, size_t maxNAmpls) {
+processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compareOut, size_t maxNAmpls, std::mutex &r_m,
+            std::mutex &m_c) {
     std::stringstream line;
     line << file.string();
 
@@ -236,12 +238,15 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     qc::QuantumComputation before = qc.clone();
 
     runBenchmark(qc, maxNAmpls, line);
-    runtimeOut << line.str();
-    runtimeOut.flush();
+    std::string runtimeString = line.str();
+    if(! runtimeString.empty()) {
+        std::lock_guard<std::mutex> lock(r_m);
+        runtimeOut << line.str() << std::endl;
+    }
 
     if (COMPARE) {
         qc::CircuitOptimizer::flattenOperations(before);
-        compareQcs(file, before, qc, compareOut);
+        compareQcs(file, before, qc, compareOut, m_c);
         compareOut.flush();
     }
 
@@ -278,8 +283,10 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 
     std::ofstream runtimeOut(runtimeFileName, std::ios::out | std::ios::trunc);
     runtimeOut << RUNTIME_HEADER << std::endl;
+    std::mutex runtimeMutex;
 
     std::ofstream compareOut;
+    std::mutex compareMutex;
 
     if (COMPARE) {
         std::string compareFileName = benchmarkFolder.string() + "//" + REDUCTION_FILENAME;
@@ -302,8 +309,8 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
     while (fileGen.next() && i++ < limit) {
         const fs::path &file = fileGen.get();
 
-        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls] {
-            processFile(file, runtimeOut, compareOut, maxNAmpls);
+        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
+            processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
         }));
     }
 
@@ -332,7 +339,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     size_t maxNAmpls = GENERATE(static_cast<size_t>(16), 128, 256);
-    double threshold = GENERATE(1e-1, 1e-3, 1e-6);
+    double threshold = GENERATE(1e-1, 1e-3, 1e-4);
 
     benchmarkParameters(maxNAmpls, threshold);
 }
