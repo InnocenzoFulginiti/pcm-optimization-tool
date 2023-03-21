@@ -27,7 +27,7 @@ using tp = std::chrono::steady_clock::time_point;
 #define MULTITHREAD true
 
 #define BENCH_MAX_AMPLITUDES 1024
-#define BENCH_EPSILON 0.01
+#define BENCH_EPSILON 0.0
 
 class ThreadPool {
 public:
