@@ -241,7 +241,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     std::string runtimeString = line.str();
     if(! runtimeString.empty()) {
         std::lock_guard<std::mutex> lock(r_m);
-        runtimeOut << line.str() << std::endl;
+        runtimeOut << line.str();
     }
 
     if (COMPARE) {
@@ -314,13 +314,9 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
         }));
     }
 
-    size_t joined = 0;
     std::stringstream ss;
     for (auto &future: futures) {
         future.wait();
-        ss << "Joined up " << ++joined << "/ " << pool.size() << " threads" << std::endl;
-        std::cout << ss.str();
-        ss.clear();
     }
 
     compareOut.close();
@@ -331,6 +327,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
     std::strftime(dateTime, 80, "%H:%M:%S", &now_tm);
     std::cout << "Finished at " << std::string(dateTime) << std::endl;
 
+    std::strftime(dateTime, 80, "%Y-%m-%d-%H-%M-%S", &now_tm);
     std::ofstream infoAppend(infoFileName, std::ios::out | std::ios::app);
     infoAppend << dateTime << std::endl;
     infoAppend.flush();
@@ -338,8 +335,8 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(16), 128, 256);
-    double threshold = GENERATE(1e-1, 1e-3, 1e-4);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    double threshold = GENERATE(0.0);
 
     benchmarkParameters(maxNAmpls, threshold);
 }
