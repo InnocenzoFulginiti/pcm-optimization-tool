@@ -22,6 +22,10 @@ std::ostream &operator<<(std::ostream &os, const BitSet &bitSet) {
 }
 
 BitSet::BitSet(int value) {
+    if (value < 0)
+        throw std::invalid_argument("BitSet cannot be negative");
+
+
     int msb = 1 << (sizeof(int) * BITS_PER_BYTE - 1);
 
     this->size = sizeof(int);
@@ -43,10 +47,11 @@ BitSet::BitSet(size_t _size, const std::vector<bool> &_copy) {
 BitSet::BitSet(unsigned int value) {
     this->size = sizeof(unsigned int) * BITS_PER_BYTE;
 
-    this->bits = std::vector<bool>();
-    this->bits.reserve(this->size);
+    this->bits = std::vector<bool>(this->size, false);
+
+    size_t i = 0;
     while (value != 0) {
-        this->bits.push_back(value & 1);
+        (*this)[i++] = (value & 1);
         value >>= 1;
     }
 }
@@ -54,10 +59,10 @@ BitSet::BitSet(unsigned int value) {
 BitSet::BitSet(size_t value) {
     this->size = sizeof(size_t) * BITS_PER_BYTE;
 
-    this->bits = std::vector<bool>();
-    this->bits.reserve(this->size);
+    this->bits = std::vector<bool>(this->size, false);
+    size_t i = 0;
     while (value != 0) {
-        this->bits.push_back(value & 1);
+        (*this)[i++] = (value & 1);
         value >>= 1;
     }
 }
@@ -137,11 +142,11 @@ bool BitSet::operator<(const BitSet &other) const {
         } else if (!(*this)[i] && other[j]) {
             return true;
         }
-        i--;
-        j--;
         if (i == 0 || j == 0) {
             break;
         }
+        i--;
+        j--;
     }
 
     return false;
@@ -225,8 +230,11 @@ bool BitSet::operator!=(const BitSet &other) const {
 }
 
 BitSet BitSet::operator>>(const size_t shift) const {
-    std::vector<bool> newBits = std::vector<bool>(this->getSize());
+    if (shift > this->getSize()) {
+        return {0, 0};
+    }
 
+    std::vector<bool> newBits = std::vector<bool>(this->bits);
     newBits.erase(newBits.begin(), newBits.begin() + static_cast<long long>(shift));
 
     return {this->size - shift, newBits};
@@ -239,8 +247,7 @@ BitSet BitSet::operator<<(const size_t shift) const {
 }
 
 BitSet BitSet::operator&(const BitSet &other) const {
-    if (this->size != other.size) {
-        std::cerr << "BitSet::operator&: Sizes of bitsets are not equal" << std::endl;
+    if (this->getSize() != other.getSize()) {
         throw std::runtime_error("BitSet::operator&: Sizes of bitsets are not equal");
     }
 
@@ -310,4 +317,9 @@ bool BitSet::isZero() const {
     }
 
     return true;
+}
+
+void BitSet::setSize(size_t newSize) {
+    this->bits.resize(newSize, false);
+    this->size = newSize;
 }

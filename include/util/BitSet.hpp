@@ -24,9 +24,7 @@ public:
 
     ~BitSet() = default;
 
-    void setSize(size_t newSize) {
-        this->size = newSize;
-    }
+    void setSize(size_t newSize);
 
     [[nodiscard]] size_t getSize() const {
         return size;

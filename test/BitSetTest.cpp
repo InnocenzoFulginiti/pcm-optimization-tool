@@ -168,3 +168,121 @@ TEST_CASE("BitSet - Random Relationships", "[BitSet]") {
         REQUIRE((bsA | ~BitSet(size, 0)) == ~BitSet(size, 0));
     }
 }
+
+TEST_CASE("BitSet Random equals/neq Test", "[BitSet]") {
+    size_t A = static_cast<size_t>(GENERATE(take(6, random(1, 10000))));
+    size_t B = static_cast<size_t>(GENERATE(take(6, random(1, 10000))));
+
+    size_t la = static_cast<size_t>(GENERATE(take(2, random(0, 256)))) % 8 * sizeof(size_t);
+    size_t lb = static_cast<size_t>(GENERATE(take(2, random(0, 256)))) % 8 * sizeof(size_t);
+
+
+    A &= (static_cast<size_t>(1) << la) - 1;
+    B &= (static_cast<size_t>(1) << lb) - 1;
+
+    CAPTURE(A, B, la, lb, A == B, A != B);
+
+    BitSet bsA(la, A);
+    BitSet bsB(lb, B);
+
+    CAPTURE(bsA, bsB);
+
+    REQUIRE(bsA == bsA);
+    REQUIRE((bsA == bsB) == (A == B));
+    REQUIRE((bsA != bsB) == (A != B));
+}
+
+TEST_CASE("BitSet Constructor", "[BitSet]") {
+    unsigned int a = static_cast<unsigned int>(GENERATE(take(10, random(0, 10000))));
+
+    BitSet bs(32, a);
+
+    auto s = bs.to_string();
+
+    CAPTURE(a, bs, s);
+
+    REQUIRE(s == std::bitset<32>(a).to_string());
+}
+
+TEST_CASE("BitSet int Constructor", "[BitSet]") {
+    int a = GENERATE(take(10, random(0, 10000)));
+
+    BitSet bs(a);
+
+    auto s = bs.to_string();
+
+    CAPTURE(a, bs, s);
+
+    REQUIRE(s == std::bitset<sizeof(int)>(static_cast<unsigned long long int>(a)).to_string());
+}
+
+TEST_CASE("BitSet - Should Throw", "[BitSet]") {
+    size_t a = static_cast<size_t>(GENERATE(take(5, random(0, 10000))));
+    size_t b = static_cast<size_t>(GENERATE(take(5, random(0, 10000))));
+
+    size_t la = static_cast<size_t>(GENERATE(take(3, random(0, 255)))) % 8 * sizeof(size_t);
+    size_t lb = la == 0 ? 1 : la - 1;
+
+    a &= (static_cast<size_t>(1) << la) - 1;
+    b &= (static_cast<size_t>(1) << lb) - 1;
+
+    //&, |, ^ should throw for not equal length
+
+    CAPTURE(a, b, la, lb);
+    REQUIRE_THROWS(BitSet(la, a) & BitSet(lb, b));
+    REQUIRE_THROWS(BitSet(la, a) | BitSet(lb, b));
+    REQUIRE_THROWS(BitSet(la, a) ^ BitSet(lb, b));
+
+    //Throw if int is negative
+
+    REQUIRE_THROWS_AS(BitSet(-1), std::invalid_argument);
+}
+
+TEST_CASE("BitSet shift", "[BitSet]") {
+    size_t a = static_cast<size_t>(GENERATE(take(10, random(0, 10))));
+    size_t la = static_cast<size_t>(GENERATE(take(3, random(0, 255)))) % 8 * sizeof(size_t);
+
+    a &= (static_cast<size_t>(1) << la) - 1;
+
+    CAPTURE(a, la);
+
+    BitSet as(la, a);
+
+    CAPTURE(as);
+
+    size_t shiftLeft = static_cast<size_t>(GENERATE(take(5, random(0, 255)))) % (8 * sizeof(size_t) - la);
+    size_t shiftRight = static_cast<size_t>(GENERATE(take(5, random(0, 50))));
+
+    CAPTURE(shiftLeft, shiftRight);
+
+    BitSet left = as << shiftLeft;
+    BitSet right = as >> shiftRight;
+
+    size_t leftA = a << shiftLeft;
+    size_t rightA = a >> shiftRight;
+
+    CAPTURE(left, right, leftA, rightA);
+
+    REQUIRE(left == BitSet(leftA));
+    REQUIRE(right == BitSet(rightA));
+}
+
+TEST_CASE("BitSet setSize", "[BitSet]") {
+    size_t a = static_cast<size_t>(GENERATE(take(10, random(0, 10000))));
+    size_t la = static_cast<size_t>(GENERATE(take(3, random(0, 255)))) % 8 * sizeof(size_t);
+
+    a &= (static_cast<size_t>(1) << la) - 1;
+
+    CAPTURE(a, la);
+
+    BitSet as(la, a);
+
+    size_t newSize = static_cast<size_t>(GENERATE(take(10, random(0, 10000)))) % (8 * sizeof(size_t) - la);
+
+    CAPTURE(newSize);
+
+    as.setSize(newSize);
+    a &= (static_cast<size_t>(1) << newSize) - 1;
+
+    REQUIRE(as == BitSet(newSize, a));
+}
