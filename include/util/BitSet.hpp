@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <vector>
+#include <string>
+#include <sstream>
 
 class BitSet {
 public:
@@ -38,6 +40,15 @@ public:
         return bits[index];
     }
 
+    std::_Bit_reference operator[](const size_t index) {
+        if (index >= size)
+            throw std::out_of_range("Index out of range");
+
+        return bits[index];
+    }
+
+    bool operator>(const BitSet &other) const;
+
     bool operator<(const BitSet &other) const;
 
     bool operator==(const BitSet &other) const;
@@ -54,19 +65,21 @@ public:
 
     BitSet &operator|=(const BitSet &other);
 
-    BitSet operator>>(const size_t shift) const;
+    BitSet operator>>(size_t shift) const;
 
-    BitSet operator<<(const size_t shift) const;
+    BitSet operator<<(size_t shift) const;
 
-    BitSet &operator<<=(const size_t shift);
+    BitSet &operator<<=(size_t shift);
 
-    BitSet &operator>>=(const size_t shift);
+    BitSet &operator>>=(size_t shift);
 
     BitSet operator~() const;
 
     BitSet operator-(const BitSet &other) const;
 
     friend std::ostream &operator<<(std::ostream &os, const BitSet &bitSet);
+
+    bool isZero() const;
 
 //Write method to display value in debugger
     void print(std::ostream &os) const {
@@ -79,7 +92,9 @@ public:
 
     //Write to_string method
     [[nodiscard]] std::string to_string() const {
-        return "";
+        std::stringstream ss;
+        ss << *this;
+        return ss.str();
     }
 
 private:

@@ -7,8 +7,15 @@
 #define BITS_PER_BYTE 8
 
 std::ostream &operator<<(std::ostream &os, const BitSet &bitSet) {
-    for (size_t i = bitSet.size - 1; i != 0; i--) {
-        os << bitSet.bits[i];
+    if (bitSet.size == 0)
+        return os;
+
+    for (size_t i = bitSet.size - 1;;) {
+        os << bitSet[i];
+        if (i == 0)
+            break;
+
+        i--;
     }
 
     return os;
@@ -58,11 +65,11 @@ BitSet::BitSet(size_t value) {
 BitSet::BitSet(size_t _size, size_t _value) {
     this->size = _size;
 
-    this->bits = std::vector<bool>();
-    this->bits.reserve(this->size);
+    this->bits = std::vector<bool>(this->size, false);
 
+    size_t i = 0;
     while (_value != 0) {
-        this->bits.push_back(_value & 1);
+        this->bits[i++] = (_value & 1);
         _value >>= 1;
     }
 }
@@ -77,73 +84,105 @@ BitSet BitSet::operator-(const BitSet &other) const {
         throw std::runtime_error("Minuend of subtraction must have larger size than subtrahend");
     }
 
-    bool carry = false;
-    BitSet ret(this->size, 0);
+    if (*this < other) {
+        throw std::runtime_error("Minuend of subtraction must be larger than subtrahend");
+    }
 
-    for (size_t i = 0; i < this->size; i++) {
+    bool carry = false;
+    BitSet ret(this->getSize(), 0);
+
+    for (size_t i = 0; i < this->getSize(); i++) {
         bool a = (*this)[i];
-        bool b = other[i];
+        bool b = false;
+        if (i < other.getSize()) {
+            b = other[i];
+        }
         bool r = a ^ b ^ carry;
         carry = (b && carry) || (!a && (carry ^ b));
-        ret.bits[i] = r;
+        ret[i] = r;
     }
 
     return ret;
 }
 
 bool BitSet::operator<(const BitSet &other) const {
-    size_t i = this->bits.size();
-    size_t j = this->bits.size();
-    while (i > 0 && j > 0 && i > j) {
-        if (this->bits[i]) {
+    if (this->getSize() == 0) {
+        return !other.isZero();
+    }
+
+    if (other.getSize() == 0) {
+        return false;
+    }
+
+    size_t i = this->getSize() - 1;
+    size_t j = other.getSize() - 1;
+    while (i > j) {
+        if ((*this)[i]) {
             return false;
         }
         i--;
     }
 
-    while (i > 0 && j > 0 && i < j) {
-        if (other.bits[j]) {
+    while (i < j) {
+        if (other[j]) {
             return true;
         }
         j--;
     }
 
     // i == j
-    while (i > 0 && j > 0) {
-        if (this->bits[i] && !other.bits[j]) {
+    while (true) {
+        if ((*this)[i] && !other[j]) {
             return false;
-        } else if (!this->bits[i] && other.bits[j]) {
+        } else if (!(*this)[i] && other[j]) {
             return true;
         }
         i--;
         j--;
+        if (i == 0 || j == 0) {
+            break;
+        }
     }
 
     return false;
 }
 
 bool BitSet::operator==(const BitSet &other) const {
-    size_t i = this->bits.size();
-    size_t j = this->bits.size();
-    while (i > 0 && j > 0 && i > j) {
-        if (this->bits[i]) {
+    if (this->getSize() == 0) {
+        return other.isZero();
+    }
+
+    if (other.getSize() == 0) {
+        return this->isZero();
+    }
+
+
+    size_t i = this->getSize() - 1;
+    size_t j = other.getSize() - 1;
+    while (i > j) {
+        if ((*this)[i]) {
             return false;
         }
         i--;
     }
 
-    while (i > 0 && j > 0 && i < j) {
-        if (other.bits[j]) {
+    while (i < j) {
+        if (other[j]) {
             return false;
         }
         j--;
     }
 
     // i == j
-    while (i > 0 && j > 0) {
-        if (this->bits[i] != other.bits[j]) {
+    while (true) {
+        if ((*this)[i] != other[j]) {
             return false;
         }
+
+        if (i == 0 || j == 0) {
+            break;
+        }
+
         i--;
         j--;
     }
@@ -152,23 +191,29 @@ bool BitSet::operator==(const BitSet &other) const {
 }
 
 BitSet BitSet::operator|(const BitSet &other) const {
+    if (this->size != other.size) {
+        std::cerr << "BitSet::operator|: Sizes of bitsets do not match" << std::endl;
+        throw std::runtime_error("BitSet::operator|: Sizes of bitsets do not match");
+    }
+
+
     size_t newSize = this->size > other.size ? this->size : other.size;
 
     std::vector<bool> newBits(newSize);
 
     size_t i = 0;
-    while (i < other.bits.size() && i < this->bits.size()) {
-        newBits[i] = this->bits[i] || other.bits[i];
+    while (i < other.getSize() && i < this->getSize()) {
+        newBits[i] = (*this)[i] || other[i];
         i++;
     }
 
-    while (i < other.bits.size()) {
-        newBits[i] = other.bits[i];
+    while (i < other.getSize()) {
+        newBits[i] = other[i];
         i++;
     }
 
-    while (i < this->bits.size()) {
-        newBits[i] = this->bits[i];
+    while (i < this->getSize()) {
+        newBits[i] = (*this)[i];
         i++;
     }
 
@@ -180,7 +225,7 @@ bool BitSet::operator!=(const BitSet &other) const {
 }
 
 BitSet BitSet::operator>>(const size_t shift) const {
-    std::vector<bool> newBits = std::vector<bool>(this->bits.size());
+    std::vector<bool> newBits = std::vector<bool>(this->getSize());
 
     newBits.erase(newBits.begin(), newBits.begin() + static_cast<long long>(shift));
 
@@ -194,11 +239,33 @@ BitSet BitSet::operator<<(const size_t shift) const {
 }
 
 BitSet BitSet::operator&(const BitSet &other) const {
-    return BitSet();
+    if (this->size != other.size) {
+        std::cerr << "BitSet::operator&: Sizes of bitsets are not equal" << std::endl;
+        throw std::runtime_error("BitSet::operator&: Sizes of bitsets are not equal");
+    }
+
+    BitSet ret(this->size, 0);
+
+    for (size_t i = 0; i < this->size; i++) {
+        ret[i] = (*this)[i] && other[i];
+    }
+
+    return ret;
 }
 
 BitSet BitSet::operator^(const BitSet &other) const {
-    return BitSet();
+    if (this->size != other.size) {
+        std::cerr << "BitSet::operator^: Sizes of bitsets are not equal" << std::endl;
+        throw std::runtime_error("BitSet::operator^: Sizes of bitsets are not equal");
+    }
+
+    BitSet ret(this->size, 0);
+
+    for (size_t i = 0; i < this->size; i++) {
+        ret[i] = (*this)[i] ^ other[i];
+    }
+
+    return ret;
 }
 
 BitSet &BitSet::operator&=(const BitSet &other) {
@@ -222,7 +289,25 @@ BitSet &BitSet::operator>>=(const size_t shift) {
 }
 
 BitSet BitSet::operator~() const {
-    return BitSet();
+    BitSet ret(this->size, 0);
+
+    for (size_t i = 0; i < this->size; i++) {
+        ret[i] = !(*this)[i];
+    }
+
+    return ret;
 }
 
+bool BitSet::operator>(const BitSet &other) const {
+    return other < *this;
+}
 
+bool BitSet::isZero() const {
+    for (size_t i = 0; i < getSize(); i++) {
+        if ((*this)[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
