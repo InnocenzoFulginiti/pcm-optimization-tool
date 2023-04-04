@@ -35,11 +35,17 @@ public:
     }
 
     bool operator[](const size_t index) const {
+        if (index >= bits.size()) {
+            if (index >= this->size)
+                throw std::out_of_range("Index out of range");
+            else
+                return false;
+        }
         return bits[index];
     }
 
     std::_Bit_reference operator[](const size_t index) {
-        if (index >= size)
+        if (index >= this->bits.size())
             throw std::out_of_range("Index out of range");
 
         return bits[index];
@@ -104,7 +110,8 @@ namespace std {
     template<>
     struct hash<BitSet> {
         auto operator()(const BitSet &bs) const -> size_t {
-            return hash<std::vector<bool>>()(bs.getBits());
+            BitSet oneSizeCopy(256, bs);
+            return hash<std::vector<bool>>()(oneSizeCopy.getBits());
         }
     };
 }  // namespace std

@@ -216,7 +216,9 @@ void QubitState::applyGate(const size_t target, const std::array<Complex, 4> mat
          * Matrix = | a b | = [a b c d]
          *          | c d |
          */
-        if ((key & (BitSet(1) << target)) == 0) {
+        BitSet targetMask = BitSet(1) << target;
+        targetMask.setSize(key.getSize());
+        if ((key & targetMask) == 0) {
             //Qubit is 0
             if (!matrix[0].isZero()) {
                 newMap[key] += val * matrix[0];

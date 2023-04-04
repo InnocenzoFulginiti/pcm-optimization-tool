@@ -10,7 +10,7 @@ std::ostream &operator<<(std::ostream &os, const BitSet &bitSet) {
     if (bitSet.size == 0)
         return os;
 
-    for (size_t i = bitSet.size - 1;;) {
+    for (size_t i = bitSet.getSize() - 1;;) {
         os << bitSet[i];
         if (i == 0)
             break;
@@ -28,13 +28,13 @@ BitSet::BitSet(int value) {
 
     int msb = 1 << (sizeof(int) * BITS_PER_BYTE - 1);
 
-    this->size = sizeof(int);
-    this->bits = std::vector<bool>();
-    this->bits.reserve(this->size);
+    this->size = sizeof(int) * BITS_PER_BYTE;
+    this->bits = std::vector<bool>(this->getSize(), false);
 
     value = value & ~msb;
+    size_t i = 0;
     while (value > 0) {
-        this->bits.emplace_back(value & 1);
+        (*this)[i++] = (value & 1);
         value >>= 1;
     }
 }
@@ -82,6 +82,7 @@ BitSet::BitSet(size_t _size, size_t _value) {
 BitSet::BitSet(size_t _size, const BitSet &_copy) {
     this->size = _size;
     this->bits = std::vector<bool>(_copy.bits);
+    this->setSize(_size);
 }
 
 BitSet BitSet::operator-(const BitSet &other) const {
@@ -196,33 +197,31 @@ bool BitSet::operator==(const BitSet &other) const {
 }
 
 BitSet BitSet::operator|(const BitSet &other) const {
-    if (this->size != other.size) {
-        std::cerr << "BitSet::operator|: Sizes of bitsets do not match" << std::endl;
-        throw std::runtime_error("BitSet::operator|: Sizes of bitsets do not match");
+    BitSet ret;
+
+    if (this->getSize() > other.getSize()) {
+        ret = BitSet(this->getSize(), 0);
+        size_t i = other.getSize();
+        while (i < this->getSize()) {
+            ret[i] = (*this)[i];
+            i++;
+        }
+    } else {
+        ret = BitSet(other.getSize(), 0);
+        size_t i = this->getSize();
+        while (i < this->getSize()) {
+            ret[i] = other[i];
+            i++;
+        }
     }
-
-
-    size_t newSize = this->size > other.size ? this->size : other.size;
-
-    std::vector<bool> newBits(newSize);
 
     size_t i = 0;
     while (i < other.getSize() && i < this->getSize()) {
-        newBits[i] = (*this)[i] || other[i];
+        ret[i] = (*this)[i] || other[i];
         i++;
     }
 
-    while (i < other.getSize()) {
-        newBits[i] = other[i];
-        i++;
-    }
-
-    while (i < this->getSize()) {
-        newBits[i] = (*this)[i];
-        i++;
-    }
-
-    return {newSize, newBits};
+    return ret;
 }
 
 bool BitSet::operator!=(const BitSet &other) const {
@@ -247,13 +246,9 @@ BitSet BitSet::operator<<(const size_t shift) const {
 }
 
 BitSet BitSet::operator&(const BitSet &other) const {
-    if (this->getSize() != other.getSize()) {
-        throw std::runtime_error("BitSet::operator&: Sizes of bitsets are not equal");
-    }
+    BitSet ret(std::max(this->getSize(), other.getSize()), 0);
 
-    BitSet ret(this->size, 0);
-
-    for (size_t i = 0; i < this->size; i++) {
+    for (size_t i = 0; i < std::min(this->getSize(), other.getSize()); i++) {
         ret[i] = (*this)[i] && other[i];
     }
 
@@ -261,12 +256,23 @@ BitSet BitSet::operator&(const BitSet &other) const {
 }
 
 BitSet BitSet::operator^(const BitSet &other) const {
-    if (this->size != other.size) {
-        std::cerr << "BitSet::operator^: Sizes of bitsets are not equal" << std::endl;
-        throw std::runtime_error("BitSet::operator^: Sizes of bitsets are not equal");
-    }
+    BitSet ret;
 
-    BitSet ret(this->size, 0);
+    if (this->getSize() > other.getSize()) {
+        ret = BitSet(this->getSize(), 0);
+        size_t i = other.getSize();
+        while (i < this->getSize()) {
+            ret[i] = (*this)[i];
+            i++;
+        }
+    } else {
+        ret = BitSet(other.getSize(), 0);
+        size_t i = this->getSize();
+        while (i < this->getSize()) {
+            ret[i] = other[i];
+            i++;
+        }
+    }
 
     for (size_t i = 0; i < this->size; i++) {
         ret[i] = (*this)[i] ^ other[i];
