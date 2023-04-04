@@ -3,17 +3,94 @@
 #include <chrono>
 #include <fstream>
 
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 
 namespace c = std::chrono;
 using tp = std::chrono::steady_clock::time_point;
 
-#define RUNTIME_HEADER "commit;file;maxNAmpls;eps;parseTime;nQubits;nOpsStart;flattenTime;nOpsInlined;propagateTime;nOpsAfterProp;wasTop"
+#define RUNTIME_HEADER "file;parseTime;nQubits;nOpsStart;flattenTime;nOpsInlined;propagateTime;nOpsAfterProp;wasTop"
 #define REDUCTION_HEADER "file;type;iBf;iAf;ctrBf;ctrAf;targets"
+#define INFO_HEADER "commit;nMaxAmpls;threshold;start;finish"
 
 #define BENCHMARK_FOLDER "..//benchmark-results"
+#define INFO_FILENAME "info.csv"
+#define REDUCTION_FILENAME "reduction.csv"
+#define RUNTIME_FILENAME "runtime.csv"
 
 #define COMPARE true
+#define MULTITHREAD true
+
+class ThreadPool {
+public:
+    explicit ThreadPool(size_t numThreads) {
+        for (size_t i = 0; i < numThreads; i++) {
+            m_workers.emplace_back([this]() {
+                while (true) {
+                    std::function<void()> task;
+                    {
+                        std::unique_lock<std::mutex> lock(m_mutex);
+                        m_condition.wait(lock, [this]() {
+                            return !m_tasks.empty() || m_stop;
+                        });
+                        if (m_stop && m_tasks.empty()) {
+                            return;
+                        }
+                        task = std::move(m_tasks.front());
+                        m_tasks.pop();
+                        std::cout << m_tasks.size() << " left in queue" << std::endl;
+                    }
+                    task();
+                }
+            });
+        }
+    }
+
+    ~ThreadPool() {
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_stop = true;
+        }
+        m_condition.notify_all();
+        for (std::thread &worker: m_workers) {
+            worker.join();
+        }
+    }
+
+    size_t size() {
+        return m_workers.size();
+    }
+
+    template<class F, class... Args>
+    auto enqueue(F &&f, Args &&... args) -> std::future<decltype(f(args...))> {
+        using return_type = decltype(f(args...));
+        auto task = std::make_shared<std::packaged_task<return_type()>>([Func = std::forward<F>(f)] { return Func(); });
+        std::future<return_type> result = task->get_future();
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            if (m_stop) {
+                throw std::runtime_error("enqueue on stopped ThreadPool");
+            }
+            m_tasks.emplace([task]() {
+                (*task)();
+            });
+        }
+        m_condition.notify_one();
+        return result;
+    }
+
+private:
+    std::vector<std::thread> m_workers;
+    std::queue<std::function<void()>> m_tasks;
+    std::mutex m_mutex;
+    std::condition_variable m_condition;
+    bool m_stop = false;
+};
 
 void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out) {
     tp start, end;
@@ -44,10 +121,9 @@ void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &ou
 
     //wasTop
     out << ";" << wasTop << std::endl;
-    out.flush();
 }
 
-void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s) {
+void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s, std::mutex &c_m) {
     auto beforeIt = before.begin();
     auto afterIt = after.begin();
 
@@ -71,58 +147,65 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
             if (beforeIt->get()->getNcontrols() > afterIt->get()->getNcontrols()) {
                 //Something was optimized
                 //fileName
-                s << file.string() << ";"
-                  //type
-                  << qc::toString(beforeIt->get()->getType()) << ";"
-                  //beforeIndex
-                  << beforeIndex << ";"
-                  //afterIndex
-                  << afterIndex << ";"
-                  //BeforeControls
-                  << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
-                                            beforeIt->get()->getControls().end(),
-                                            std::string(), [](const auto &a, const qc::Control &b) {
+                std::stringstream ss;
+                ss << file.string() << ";"
+                   //type
+                   << qc::toString(beforeIt->get()->getType()) << ";"
+                   //beforeIndex
+                   << beforeIndex << ";"
+                   //afterIndex
+                   << afterIndex << ";"
+                   //BeforeControls
+                   << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
+                                             beforeIt->get()->getControls().end(),
+                                             std::string(), [](const auto &a, const qc::Control &b) {
                             return a + std::to_string(b.qubit) + ",";
                         }) << "];"
-                  //afterControls
-                  << "[" << std::accumulate(afterIt->get()->getControls().begin(),
-                                            afterIt->get()->getControls().end(),
-                                            std::string(), [](const auto &a, const qc::Control &b) {
+                   //afterControls
+                   << "[" << std::accumulate(afterIt->get()->getControls().begin(),
+                                             afterIt->get()->getControls().end(),
+                                             std::string(), [](const auto &a, const qc::Control &b) {
                             return a + std::to_string(b.qubit) + ",";
                         }) << "];"
-                  //Targets
-                  << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
-                                            beforeIt->get()->getTargets().end(),
-                                            std::string(), [](const auto &a, const auto &b) {
+                   //Targets
+                   << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
+                                             beforeIt->get()->getTargets().end(),
+                                             std::string(), [](const auto &a, const auto &b) {
                             return a + std::to_string(b) + ",";
                         }) << "]\n";
+
+                std::lock_guard<std::mutex> lock(c_m);
+                s << ss.str();
             }
 
             afterIt++;
             afterIndex++;
         } else {
             //Not the same gate. Something was removed
-            s << file.string() << ";"
-              //type
-              << qc::toString(beforeIt->get()->getType()) << ";"
-              //beforeIndex
-              << beforeIndex << ";"
-              //afterIndex
-              << "-1;"
-              //BeforeControls
-              << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
-                                        beforeIt->get()->getControls().end(),
-                                        std::string(), [](const auto &a, const qc::Control &b) {
+            std::stringstream ss;
+            ss << file.string() << ";"
+               //type
+               << qc::toString(beforeIt->get()->getType()) << ";"
+               //beforeIndex
+               << beforeIndex << ";"
+               //afterIndex
+               << "-1;"
+               //BeforeControls
+               << "[" << std::accumulate(beforeIt->get()->getControls().begin(),
+                                         beforeIt->get()->getControls().end(),
+                                         std::string(), [](const auto &a, const qc::Control &b) {
                         return a + std::to_string(b.qubit) + ",";
                     }) << "];"
-              //afterControls
-              << "[];"
-              //Targets
-              << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
-                                        beforeIt->get()->getTargets().end(),
-                                        std::string(), [](const auto &a, const auto &b) {
+               //afterControls
+               << "[];"
+               //Targets
+               << "[" << std::accumulate(beforeIt->get()->getTargets().begin(),
+                                         beforeIt->get()->getTargets().end(),
+                                         std::string(), [](const auto &a, const auto &b) {
                         return a + std::to_string(b) + ",";
                     }) << "]\n";
+            std::lock_guard<std::mutex> lock(c_m);
+            s << ss.str();
         }
 
         beforeIt++;
@@ -130,7 +213,51 @@ void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::Quantu
     }
 }
 
-TEST_CASE("Test Circuit Performance", "[!benchmark]") {
+void
+processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compareOut, size_t maxNAmpls, std::mutex &r_m,
+            std::mutex &m_c) {
+    std::stringstream line;
+    line << file.string();
+
+    tp start = c::steady_clock::now();
+    qc::QuantumComputation qc;
+
+    try {
+        qc = qc::QuantumComputation(file.string());
+    } catch (std::exception &e) {
+        line << "; qfr threw an exception while importing: " << e.what() << ";;;;;;;\n";
+        return;
+    }
+
+    tp end = c::steady_clock::now();
+    long long dur = c::duration_cast<c::microseconds>(end - start).count();
+
+    //parseTime,nQubits,nOpsStart
+    line << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
+
+    qc::QuantumComputation before = qc.clone();
+
+    runBenchmark(qc, maxNAmpls, line);
+    std::string runtimeString = line.str();
+    if(! runtimeString.empty()) {
+        std::lock_guard<std::mutex> lock(r_m);
+        runtimeOut << line.str();
+    }
+
+    if (COMPARE) {
+        qc::CircuitOptimizer::flattenOperations(before);
+        compareQcs(file, before, qc, compareOut, m_c);
+        compareOut.flush();
+    }
+
+    end = c::steady_clock::now();
+    dur = c::duration_cast<c::microseconds>(end - start).count();
+    std::cout << file.string() << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
+}
+
+void benchmarkParameters(size_t maxNAmpls, double threshold) {
+    std::cout << "Benchmarking with maxNAmpls=" << maxNAmpls << " and threshold=" << threshold << std::endl;
+
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
     std::tm now_tm = *std::localtime(&now_c);
@@ -139,76 +266,57 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     std::setlocale(LC_TIME, "C");
     std::strftime(dateTime, 80, "%Y-%m-%d-%H-%M-%S", &now_tm);
 
-    fs::path benchmarkFolder = BENCHMARK_FOLDER;
+    fs::path benchmarkFolder = BENCHMARK_FOLDER "//" + std::string(dateTime);
     create_directories(benchmarkFolder);
 
-    std::string runtimeFileName = BENCHMARK_FOLDER "//runtime-" + std::string(dateTime) + ".csv";
-    std::cout << "Writing to:" << runtimeFileName << std::endl;
+    std::string infoFileName = benchmarkFolder.string() + "//" + INFO_FILENAME;
+    std::cout << "Writing to: " << infoFileName << std::endl;
+
+    std::ofstream infoOut(infoFileName, std::ios::out | std::ios::trunc);
+    infoOut << INFO_HEADER << std::endl;
+    infoOut << GIT_COMMIT_HASH << ";" << maxNAmpls << ";" << threshold << ";" << std::string(dateTime) << ";";
+    infoOut.flush();
+    infoOut.close();
+
+    std::string runtimeFileName = benchmarkFolder.string() + "//" + RUNTIME_FILENAME;
+    std::cout << "Writing to: " << runtimeFileName << std::endl;
 
     std::ofstream runtimeOut(runtimeFileName, std::ios::out | std::ios::trunc);
     runtimeOut << RUNTIME_HEADER << std::endl;
+    std::mutex runtimeMutex;
 
     std::ofstream compareOut;
+    std::mutex compareMutex;
 
     if (COMPARE) {
-        std::string compareFileName = BENCHMARK_FOLDER "//compare-" + std::string(dateTime) + ".csv";
+        std::string compareFileName = benchmarkFolder.string() + "//" + REDUCTION_FILENAME;
         compareOut.open(compareFileName, std::ios::out | std::ios::trunc);
         compareOut << REDUCTION_HEADER << std::endl;
+        std::cout << "Writing to: " << compareFileName << std::endl;
     }
 
-    auto fileGen = qasmFile(QASMFileGenerator::ALL);
+    auto fileGen = QASMFileGenerator(QASMFileGenerator::ALL);
 
     size_t i = 0;
     size_t limit = 250;
 
-    size_t maxNAmpls = 1024;
-    double eps = 0.0;
+    Complex::setEpsilon(threshold);
 
-    Complex::setEpsilon(eps);
+    ThreadPool pool(MULTITHREAD ? std::thread::hardware_concurrency() : 1);
+    std::cout << "Using " << pool.size() << " threads" << std::endl;
+    std::vector<std::future<void>> futures;
+
     while (fileGen.next() && i++ < limit) {
         const fs::path &file = fileGen.get();
 
-        now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        now_tm = *std::localtime(&now_c);
-        std::strftime(dateTime, 80, "%H:%M:%S", &now_tm);
+        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
+            processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
+        }));
+    }
 
-        std::cout << std::string(dateTime) << ": " << file.string();
-
-        runtimeOut << GIT_COMMIT_HASH << ";" << file.string() << ";" << maxNAmpls << ";" << eps;
-
-        tp start = c::steady_clock::now();
-        qc::QuantumComputation qc;
-
-        try {
-            qc = qc::QuantumComputation(file.string());
-        } catch (std::exception &e) {
-            runtimeOut << ", qfr threw an exception while importing: " << e.what() << "\n";
-            continue;
-        }
-
-        tp end = c::steady_clock::now();
-        long long dur = c::duration_cast<c::microseconds>(end - start).count();
-
-        std::cout << ", nOps=" << qc.getNops();
-        std::cout.flush();
-
-        //parseTime,nQubits,nOpsStart
-        runtimeOut << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
-
-        qc::QuantumComputation before = qc.clone();
-
-        runBenchmark(qc, maxNAmpls, runtimeOut);
-        runtimeOut.flush();
-
-        if (COMPARE) {
-            qc::CircuitOptimizer::flattenOperations(before);
-            compareQcs(file, before, qc, compareOut);
-            compareOut.flush();
-        }
-
-        end = c::steady_clock::now();
-        dur = c::duration_cast<c::microseconds>(end - start).count();
-        std::cout << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
+    std::stringstream ss;
+    for (auto &future: futures) {
+        future.wait();
     }
 
     compareOut.close();
@@ -218,4 +326,17 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     now_tm = *std::localtime(&now_c);
     std::strftime(dateTime, 80, "%H:%M:%S", &now_tm);
     std::cout << "Finished at " << std::string(dateTime) << std::endl;
+
+    std::strftime(dateTime, 80, "%Y-%m-%d-%H-%M-%S", &now_tm);
+    std::ofstream infoAppend(infoFileName, std::ios::out | std::ios::app);
+    infoAppend << dateTime << std::endl;
+    infoAppend.flush();
+    infoAppend.close();
+}
+
+TEST_CASE("Test Circuit Performance", "[!benchmark]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    double threshold = GENERATE(0.0);
+
+    benchmarkParameters(maxNAmpls, threshold);
 }
