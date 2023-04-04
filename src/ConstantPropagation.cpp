@@ -141,26 +141,23 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             continue;
         }
 
-        //Two qubit gates
+        //Entangle Control Bits and Targets
+        table->combine(op->getTargets()[0], min);
+        checkAmplitude(table, maxAmplitudes, op->getTargets()[0]);
+
         if (qc::isTwoQubitGate(op->getType())) {
+            //Two qubit gate
             size_t t1 = op->getTargets()[0];
             size_t t2 = op->getTargets()[1];
             auto twoQubitMat = getTwoQubitMatrix(*op);
+
+            //Entangle second Target only present for twoQubitGates
             table->combine(t1, t2);
-
             checkAmplitude(table, maxAmplitudes, t1);
 
             if (table->isTop(t1)) {
                 continue;
             }
-
-            table->combine(t1, min);
-            checkAmplitude(table, maxAmplitudes, t1);
-
-            if (table->isTop(t1)) {
-                continue;
-            }
-
 
             (*table)[t1].getQubitState()->applyTwoQubitGate(table->indexInState(t1),
                                                             table->indexInState(t2),
@@ -170,25 +167,17 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         } else {
             //Single Qubit Gate
             size_t target = op->getTargets().begin()[0];
+
+            if (table->isTop(target)) {
+                continue;
+            }
+
             auto singleQubitMat = getMatrix(*op);
-
-            if (table->isTop(target)) {
-                continue;
-            }
-
-            table->combine(target, min);
-
+            (*table)[target].getQubitState()->applyGate(table->indexInState(target),
+                                                        table->indexInState(min),
+                                                        singleQubitMat);
             checkAmplitude(table, maxAmplitudes, target);
-
-            if (table->isTop(target)) {
-                continue;
-            } else {
-                (*table)[target].getQubitState()->applyGate(table->indexInState(target),
-                                                            table->indexInState(min),
-                                                            singleQubitMat);
-                checkAmplitude(table, maxAmplitudes, target);
-                continue;
-            }
+            continue;
         }
     } //Loop over Gates
 
