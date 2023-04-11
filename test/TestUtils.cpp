@@ -2,7 +2,7 @@
 
 #include <memory>
 
-Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::SIZE s) {
+Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::TYPE s) {
     return {
             new QASMFileGenerator(s)
     };
@@ -176,18 +176,21 @@ void approxUnionTable(const std::shared_ptr<UnionTable> &expected, const std::sh
     }
 }
 
-QASMFileGenerator::QASMFileGenerator(QASMFileGenerator::SIZE s) {
+QASMFileGenerator::QASMFileGenerator(QASMFileGenerator::TYPE s) {
     switch (s) {
-        case SMALL:
+        case QASM_BENCH_SMALL:
             unused = findQASMFiles("small");
             break;
-        case MEDIUM:
+        case QASM_BENCH_MEDIUM:
             unused = findQASMFiles("medium");
             break;
-        case LARGE:
+        case QASM_BENCH_LARGE:
             unused = findQASMFiles("large");
             break;
-        case ALL:
+        case MQT:
+            unused = findMQTFiles();
+            break;
+        case QASM_BENCH_ALL:
             std::vector<fs::path> small = findQASMFiles("small");
             std::vector<fs::path> medium = findQASMFiles("medium");
             std::vector<fs::path> large = findQASMFiles("large");
@@ -213,6 +216,19 @@ bool QASMFileGenerator::next() {
 
 std::string QASMFileGenerator::stringifyImpl() const {
     return unused.back().string();
+}
+
+std::vector<fs::path> QASMFileGenerator::findMQTFiles() {
+    auto folder = std::filesystem::path(MQT_Bench_PATH);
+
+    std::vector<fs::path> mqtFiles{};
+    for (auto &f: fs::directory_iterator(folder)) {
+        if (f.is_regular_file() && f.path().extension() == ".qasm") {
+            mqtFiles.emplace_back(f);
+        }
+    }
+
+    return mqtFiles;
 }
 
 std::vector<fs::path> QASMFileGenerator::findQASMFiles(const std::string &subfolder) {
