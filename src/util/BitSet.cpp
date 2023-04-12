@@ -5,8 +5,6 @@
 #include <algorithm>
 #include "../../include/util/BitSet.hpp"
 
-#define BITS_PER_BYTE 8
-
 std::ostream &operator<<(std::ostream &os, const BitSet &bitSet) {
     if (bitSet.size == 0)
         return os;
@@ -64,7 +62,8 @@ bool BitSet::operator<(const BitSet &other) const {
         throw std::runtime_error("BitSets must have same size for operator<");
     }
 
-    // i == j
+    if (this->getSize() == 0) return other.getSize() == 0;
+
     for (size_t i = this->getSize() - 1;;) {
         if ((*this)[i] && !other[i]) {
             return false;
@@ -81,25 +80,23 @@ bool BitSet::operator<(const BitSet &other) const {
 }
 
 bool BitSet::operator==(const BitSet &other) const {
+    if (this->getSize() != other.getSize()) return false;
 
-    size_t i = this->getSize() - 1;
+    size_t i = 0;
 
-    while (true) {
-        if ((*this)[i] != other[i]) {
-            return false;
-        }
-
-        if (i == 0) {
-            break;
-        }
-
-        i--;
+    while (i < other.getSize() && i < this->getSize()) {
+        if ((*this)[i] != other[i]) return false;
+        i++;
     }
 
     return true;
 }
 
 BitSet BitSet::operator|(const BitSet &other) const {
+    if (this->getSize() != other.getSize()) {
+        throw std::runtime_error("BitSets must have same size for operator|");
+    }
+
     BitSet ret(this->getSize(), 0);
 
     size_t i = 0;
@@ -117,13 +114,16 @@ bool BitSet::operator!=(const BitSet &other) const {
 
 BitSet BitSet::operator>>(const size_t shift) const {
     if (shift > this->getSize()) {
-        return {this->size, 0};
+        return {this->getSize(), false};
     }
 
-    std::vector<bool> newBits = std::vector<bool>(this->bits);
-    newBits.erase(newBits.begin(), newBits.begin() + static_cast<long long>(shift));
+    BitSet ret(this->getSize(), 0);
 
-    return {this->size - shift, newBits};
+    for (size_t i = shift; i < this->getSize(); i++) {
+        ret[i - shift] = (*this)[i];
+    }
+
+    return ret;
 }
 
 BitSet BitSet::operator<<(const size_t shift) const {

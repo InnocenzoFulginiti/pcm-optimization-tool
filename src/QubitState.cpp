@@ -10,7 +10,7 @@ QubitState::QubitState(size_t _nQubits) {
     this->nQubits = _nQubits;
     this->map = std::unordered_map<BitSet, Complex>();
 
-    map[BitSet(1, 0)] = Complex(1, 0);
+    map[BitSet(_nQubits, 0)] = Complex(1, 0);
 }
 
 size_t QubitState::size() const {
@@ -138,7 +138,7 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
             middle >>= 1;
         }
 
-        BitSet newKey(key.getSize(), leftUnchanged | middle | rightUnchanged);
+        BitSet newKey = leftUnchanged | middle | rightUnchanged;
         newKey[newI] = movingBit;
         newMap[newKey] = value;
     }
