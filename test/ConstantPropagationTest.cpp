@@ -76,10 +76,10 @@ TEST_CASE("Try SWAP") {
     auto q1 = (*table)[1].getQubitState();
 
     REQUIRE_FALSE(q0.get() == q1.get());
-    CHECK((*q0)[0] == 1);
-    CHECK((*q0)[1] == 0);
-    CHECK((*q1)[0] == SQRT_2_2);
-    CHECK((*q1)[1] == SQRT_2_2);
+    CHECK((*q0)[BitSet(1, 0)] == 1);
+    CHECK((*q0)[BitSet(1, 1)] == 0);
+    CHECK((*q1)[BitSet(1, 0)] == SQRT_2_2);
+    CHECK((*q1)[BitSet(1, 1)] == SQRT_2_2);
 }
 
 TEST_CASE("Try File with Reset") {

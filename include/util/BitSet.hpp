@@ -1,42 +1,30 @@
 #ifndef QCPROP_BITSET_HPP
 #define QCPROP_BITSET_HPP
 
-
-#include <bitset>
 #include <iostream>
-
-//TODO: Make this dynamic
-//E.g. vector<bool> or dynamic_bitset (boost)
-#define MAX_QUBITS 400
+#include <vector>
+#include <string>
+#include <sstream>
 
 class BitSet {
 public:
-    BitSet() : size(MAX_QUBITS), bits() {}
+    BitSet(size_t _size, size_t _value);
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "google-explicit-constructor"
+    BitSet(size_t _size, const BitSet &_copy);
 
-    BitSet(int value);
+    BitSet(size_t _size, const std::vector<bool> &_copy);
 
-    BitSet(unsigned int value) : size(MAX_QUBITS), bits(static_cast<size_t>(value)) {}
-
-    BitSet(size_t value) : size(MAX_QUBITS), bits(value) {}
-
-#pragma clang diagnostic pop
-
-    BitSet(size_t _size, size_t _value) : size(_size), bits(_value) {};
-
-    explicit BitSet(std::bitset<MAX_QUBITS> _bits) : size(MAX_QUBITS), bits(_bits) {}
-
-    BitSet(size_t _size, std::bitset<MAX_QUBITS> _bits) : size(_size), bits(_bits) {}
-
-    BitSet(size_t _size, BitSet _copy) : size(_size), bits(_copy.bits) {}
+    /**
+     *
+     * @param size - Size of the BitSet
+     * @param value - Value to set bits with index [0, numberOfSetValues[ to
+     * @param numberOfSetValues - Number of bits to set to value
+     */
+    BitSet(size_t size, bool value, size_t numberOfSetValues);
 
     ~BitSet() = default;
 
-    void setSize(size_t newSize) {
-        this->size = newSize;
-    }
+    void setSize(size_t newSize);
 
     [[nodiscard]] size_t getSize() const {
         return size;
@@ -47,80 +35,51 @@ public:
     }
 
     bool operator[](const size_t index) const {
+        if (index >= bits.size()) {
+            if (index >= this->size)
+                throw std::out_of_range("Index out of range");
+            else
+                return false;
+        }
         return bits[index];
     }
 
-    bool operator<(const BitSet &other) const {
-        auto str1 = this->bits.to_string();
-        auto strOther = other.bits.to_string();
-        return str1 < strOther;
+    std::_Bit_reference operator[](const size_t index) {
+        if (index >= this->bits.size())
+            throw std::out_of_range("Index out of range");
+
+        return bits[index];
     }
 
-    bool operator>(const BitSet &other) const {
-        return other < *this;
-    }
+    bool operator>(const BitSet &other) const;
 
-    bool operator==(const BitSet &other) const {
-        for (size_t i = size - 1;; i--) {
-            if ((*this)[i] ^ other[i]) return false;
+    bool operator<(const BitSet &other) const;
 
-            if (i == 0) break;
-        }
-        return true;
-    }
+    bool operator==(const BitSet &other) const;
 
-    bool operator!=(const BitSet &other) const {
-        return !(*this == other);
-    }
+    bool operator!=(const BitSet &other) const;
 
-    BitSet operator&(const BitSet &other) const {
-        return {this->size, this->bits & other.bits};
-    }
+    BitSet operator&(const BitSet &other) const;
 
-    BitSet operator|(const BitSet &other) const {
-        size_t newSize = this->size > other.size ? this->size : other.size;
-        return {newSize, this->bits | other.bits};
-    }
+    BitSet operator|(const BitSet &other) const;
 
-    BitSet operator^(const BitSet &other) const {
-        size_t newSize = this->size > other.size ? this->size : other.size;
-        return {newSize, this->bits ^ other.bits};
-    }
+    BitSet operator^(const BitSet &other) const;
 
-    BitSet &operator&=(const BitSet &other) {
-        this->bits &= other.bits;
-        return *this;
-    }
+    BitSet &operator&=(const BitSet &other);
 
-    BitSet &operator|=(const BitSet &other) {
-        this->size = this->size > other.size ? this->size : other.size;
-        this->bits |= other.bits;
-        return *this;
-    }
+    BitSet &operator|=(const BitSet &other);
 
-    BitSet operator>>(const size_t shift) const {
-        return {this->size, this->bits >> shift};
-    }
+    BitSet operator>>(size_t shift) const;
 
-    BitSet operator<<(const size_t shift) const {
-        return {this->size + shift, this->bits << shift};
-    }
+    BitSet operator<<(size_t shift) const;
 
-    BitSet &operator<<=(const size_t shift) {
-        this->bits <<= shift;
-        return *this;
-    }
+    BitSet &operator<<=(size_t shift);
 
-    BitSet &operator>>=(const size_t shift) {
-        this->bits >>= shift;
-        return *this;
-    }
+    BitSet &operator>>=(size_t shift);
 
-    BitSet operator~() const {
-        return {this->size, ~this->bits};
-    }
+    bool allTrue(std::vector<size_t> indices) const;
 
-    BitSet operator-(const BitSet &other) const;
+    BitSet operator~() const;
 
     friend std::ostream &operator<<(std::ostream &os, const BitSet &bitSet);
 
@@ -129,28 +88,27 @@ public:
         os << *this;
     }
 
-    [[nodiscard]] std::bitset<MAX_QUBITS> getBits() const {
+    [[nodiscard]] std::vector<bool> getBits() const {
         return bits;
     }
 
     //Write to_string method
     [[nodiscard]] std::string to_string() const {
-        auto bitString = this->bits.to_string();
-        //Remove leading zeros
-        std::string ret = bitString.substr(MAX_QUBITS - size, size);
-        return ret;
+        std::stringstream ss;
+        ss << *this;
+        return ss.str();
     }
 
 private:
     size_t size;
-    std::bitset<MAX_QUBITS> bits;
+    std::vector<bool> bits;
 };
 
 namespace std {
     template<>
     struct hash<BitSet> {
         auto operator()(const BitSet &bs) const -> size_t {
-            return hash<std::bitset<MAX_QUBITS>>()(bs.getBits());
+            return hash<std::vector<bool>>()(bs.getBits());
         }
     };
 }  // namespace std
