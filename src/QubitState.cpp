@@ -10,7 +10,7 @@ QubitState::QubitState(size_t _nQubits) {
     this->nQubits = _nQubits;
     this->map = std::unordered_map<BitSet, Complex>();
 
-    map[BitSet(1, 0)] = Complex(1, 0);
+    map[BitSet(_nQubits, 0)] = Complex(1, 0);
 }
 
 size_t QubitState::size() const {
@@ -64,16 +64,10 @@ void QubitState::swapIndex(size_t q1, size_t q2) {
 
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
     for (auto [key, value]: this->map) {
-        BitSet k1 = key & (BitSet(1) << q1);
-        BitSet k2 = key & (BitSet(1) << q2);
-        BitSet newKey = key & ~((BitSet(1) << q1) | (BitSet(1) << q2));
-        if (q1 >= q2) {
-            newKey |= k1 >> (q1 - q2);
-            newKey |= k2 << (q1 - q2);
-        } else {
-            newKey |= k1 << (q2 - q1);
-            newKey |= k2 >> (q2 - q1);
-        }
+        BitSet newKey = key;
+
+        newKey[q1] = key[q2];
+        newKey[q2] = key[q1];
 
         newMap[newKey] = value;
     }
@@ -86,8 +80,9 @@ void QubitState::swapIndex(size_t q1, size_t q2) {
     this->nQubits--;
 
     for (auto [key, value]: this->map) {
-        BitSet newKey = key & ((BitSet(1) << q) - 1); //Keep bits right of q
-        newKey |= (key & (~((BitSet(1) << (q + 1)) - 1))) >> 1; //Keep bits left of q and shift them right
+        BitSet newKey = key & (BitSet(this->getNQubits() - 1, true, q)); //Keep bits right of q
+        newKey |=
+                (key & (~BitSet(this->getNQubits() - 1, true, q + 1))) >> 1; //Keep bits left of q and shift them right
         newKey.setSize(nQubits);
         newMap[newKey] += value;
     }
@@ -112,6 +107,8 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
         throw std::out_of_range(msg);
     }
 
+    size_t nq = this->getNQubits();
+
     //Left being MSB
     size_t left = oldI > newI ? oldI : newI;
     size_t right = oldI < newI ? oldI : newI;
@@ -119,26 +116,24 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
     for (auto [key, value]: this->map) {
         //Calculate new key
-        BitSet leftUnchanged = key & ~((BitSet(1) << (left + 1)) - 1);
-        BitSet rightUnchanged = key & ((BitSet(1) << right) - 1);
-        BitSet movingBit = key & (BitSet(1) << oldI);
+        BitSet leftUnchanged = key & ~BitSet(nq, true, left + 1);
+        BitSet rightUnchanged = key & BitSet(nq, true, right);
+        bool movingBit = key[oldI];
 
-        BitSet middle;
-        BitSet shiftedMoving;
+        BitSet middle(0, 0);
 
         if (oldI >= newI) {
             //Move middle to the left
-            middle = key & (((BitSet(1) << left) - 1) & ~((BitSet(1) << right) - 1));
+            middle = key & (BitSet(nq, true, left) & ~BitSet(nq, true, right));
             middle <<= 1;
-            shiftedMoving = movingBit >> (left - right);
         } else {
             //Move middle to the right
-            middle = key & (((BitSet(1) << (left + 1)) - 1) & ~((BitSet(1) << (right + 1)) - 1));
+            middle = key & (BitSet(nq, true, left + 1) & ~BitSet(nq, true, right + 1));
             middle >>= 1;
-            shiftedMoving = movingBit << (left - right);
         }
 
-        BitSet newKey(key.getSize(), leftUnchanged | middle | shiftedMoving | rightUnchanged);
+        BitSet newKey = leftUnchanged | middle | rightUnchanged;
+        newKey[newI] = movingBit;
         newMap[newKey] = value;
     }
 
@@ -187,14 +182,11 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
             size_t nextBit2 = 0;
             for (bool nextIsFrom1: interlace) {
                 if (nextIsFrom1) {
-                    newKey |= ((key1 & (BitSet(1) << nextBit1)) >> nextBit1) << nextBitNew;
-                    nextBit1++;
+                    newKey[nextBitNew++] = key1[nextBit1++];
                 } else {
                     //use next bit from 2 first
-                    newKey |= ((key2 & (BitSet(1) << nextBit2)) >> nextBit2) << nextBitNew;
-                    nextBit2++;
+                    newKey[nextBitNew++] = key2[nextBit2++];
                 }
-                nextBitNew++;
             }
 
             //Insert new value
@@ -216,21 +208,26 @@ void QubitState::applyGate(const size_t target, const std::array<Complex, 4> mat
          * Matrix = | a b | = [a b c d]
          *          | c d |
          */
-        if ((key & (BitSet(1) << target)) == 0) {
+        size_t nq = this->getNQubits();
+        if (key[target]) {
+            //Qubit is 1
+            if (!matrix[1].isZero()) {
+                BitSet newKey(nq, key);
+                newKey[target] = false;
+                newMap[newKey] += val * matrix[1];
+            }
+            if (!matrix[3].isZero()) {
+                newMap[key] += val * matrix[3];
+            }
+        } else {
             //Qubit is 0
             if (!matrix[0].isZero()) {
                 newMap[key] += val * matrix[0];
             }
             if (!matrix[2].isZero()) {
-                newMap[BitSet(this->nQubits, key | (BitSet(1) << target))] += val * matrix[2];
-            }
-        } else {
-            //Qubit is 1
-            if (!matrix[1].isZero()) {
-                newMap[key & ~(BitSet(1, 1) << target)] += val * matrix[1];
-            }
-            if (!matrix[3].isZero()) {
-                newMap[key] += val * matrix[3];
+                BitSet newKey(nq, key);
+                newKey[target] = true;
+                newMap[newKey] += val * matrix[2];
             }
         }
     }
@@ -257,7 +254,7 @@ bool QubitState::operator==(const QubitState &rhs) const {
     if (this->size() != rhs.size())
         return false;
 
-    return std::all_of(this->map.begin(), this->map.end(), [&](const std::pair<const BitSet, Complex> p) {
+    return std::all_of(this->map.begin(), this->map.end(), [&](const std::pair<const BitSet, Complex> &p) {
         auto [key, val] = p;
         return (rhs.map.find(p.first) != rhs.map.end())
                && (val != rhs.map.at(key));
@@ -265,23 +262,23 @@ bool QubitState::operator==(const QubitState &rhs) const {
 }
 
 bool QubitState::neverActivated(const std::vector<size_t> &indices) const {
-    BitSet mask(0);
-    for (size_t index: indices) {
-        mask |= BitSet(1) << index;
-    }
-
-    return std::all_of(this->map.begin(), this->map.end(),
-                       [&](const std::pair<const BitSet, Complex> p) { return (p.first & mask) == 0; });
+    //None of the keys are active
+    return std::none_of(this->map.begin(), this->map.end(),
+                        [&](const std::pair<const BitSet, Complex> p) {
+                            //This key activates - for all indices is true
+                            return std::all_of(indices.begin(), indices.end(),
+                                               [&](const size_t index) { return p.first[index]; });
+                        });
 }
 
 bool QubitState::alwaysActivated(const std::vector<size_t> &indices) const {
-    BitSet mask(0);
-    for (size_t index: indices) {
-        mask |= BitSet(1) << index;
-    }
-
+    //All keys activate
     return std::all_of(this->map.begin(), this->map.end(),
-                       [&](const std::pair<const BitSet, Complex> p) { return (p.first & mask) == mask; });
+                       [&](const std::pair<const BitSet, Complex> p) {
+                           //This key activates - for all indices is true
+                           return std::all_of(indices.begin(), indices.end(),
+                                              [&](const size_t index) { return p.first[index]; });
+                       });
 }
 
 std::shared_ptr<QubitState> QubitState::clone() const {
@@ -302,11 +299,6 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
         return;
     }
 
-    BitSet mask(0);
-    for (size_t index: controls) {
-        mask |= BitSet(1) << index;
-    }
-
     //Split amplitudes into activated and deactivated
     QubitState activated(this->nQubits);
     activated.clear();
@@ -314,7 +306,7 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
     deactivated.clear();
 
     for (auto const &[key, value]: this->map) {
-        if ((key & mask) == mask) {
+        if (key.allTrue(controls)) {
             activated[key] = value;
         } else {
             deactivated[key] = value;
@@ -340,11 +332,6 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2, const std::vector<size_
         return;
     }
 
-    BitSet mask(0);
-    for (size_t index: controls) {
-        mask |= BitSet(1) << index;
-    }
-
     //Split amplitudes into activated and deactivated
     QubitState activated(this->nQubits);
     activated.clear();
@@ -352,7 +339,7 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2, const std::vector<size_
     deactivated.clear();
 
     for (auto const &[key, value]: this->map) {
-        if ((key & mask) == mask) {
+        if (key.allTrue(controls)) {
             activated[key] = value;
         } else {
             deactivated[key] = value;
@@ -372,20 +359,17 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2, const std::vector<size_
 void QubitState::applyTwoQubitGate(size_t t1, size_t t2,
                                    std::array<std::array<Complex, 4>, 4> mat) {
     std::unordered_map<BitSet, Complex> newMap{};
+    size_t nq = this->nQubits;
 
-    BitSet resetMask = (BitSet(1) << t1 | BitSet(1) << t2);
-    resetMask.setSize(this->nQubits);
-    resetMask = ~resetMask;
     for (auto &[key, value]: this->map) {
         bool t1Val = key[t1];
         bool t2Val = key[t2];
         unsigned col = t1Val + static_cast<unsigned>(2) * t2Val;
-        BitSet newKey;
+        BitSet newKey(nq, key);
         for (unsigned row = 0; row < 4; row++) {
-            newKey = key & resetMask;
-            newKey |= (row & 1) << t1;
-            newKey |= ((row & 2) >> 1) << t2;
-            newKey.setSize(this->nQubits);
+            newKey = BitSet(nq, key);
+            newKey[t1] = row & 1;
+            newKey[t2] = (row & 2) >> 1;
             newMap[newKey] += mat[row][col] * value;
         }
     }
