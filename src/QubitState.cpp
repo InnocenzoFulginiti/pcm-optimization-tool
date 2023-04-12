@@ -64,16 +64,10 @@ void QubitState::swapIndex(size_t q1, size_t q2) {
 
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
     for (auto [key, value]: this->map) {
-        BitSet k1 = key & (BitSet(this->getNQubits(), 1) << q1);
-        BitSet k2 = key & (BitSet(this->getNQubits(), 1) << q2);
-        BitSet newKey = key & ~((BitSet(this->getNQubits(), 1) << q1) | (BitSet(this->getNQubits(), 1) << q2));
-        if (q1 >= q2) {
-            newKey |= k1 >> (q1 - q2);
-            newKey |= k2 << (q1 - q2);
-        } else {
-            newKey |= k1 << (q2 - q1);
-            newKey |= k2 >> (q2 - q1);
-        }
+        BitSet newKey = key;
+
+        newKey[q1] = key[q2];
+        newKey[q2] = key[q1];
 
         newMap[newKey] = value;
     }
@@ -183,24 +177,16 @@ QubitState::combine(const std::shared_ptr<QubitState> &qubitState1, std::vector<
         for (const auto &[key2, value2]: *qubitState2) {
             //Calculate new key
             BitSet newKey = BitSet(qubitState1->getNQubits() + qubitState2->getNQubits(), 0);
-            size_t nq = newQubitState->getNQubits();
             size_t nextBitNew = 0;
             size_t nextBit1 = 0;
             size_t nextBit2 = 0;
             for (bool nextIsFrom1: interlace) {
                 if (nextIsFrom1) {
-                    BitSet nextBit = (key1 & (BitSet(key1.getSize(), 1) << nextBit1)) >> nextBit1;
-                    nextBit.setSize(nq);
-                    newKey |= nextBit << nextBitNew;
-                    nextBit1++;
+                    newKey[nextBitNew++] = key1[nextBit1++];
                 } else {
                     //use next bit from 2 first
-                    BitSet nextBit = (key2 & (BitSet(key2.getSize(), 1) << nextBit2)) >> nextBit2;
-                    nextBit.setSize(nq);
-                    newKey |= nextBit << nextBitNew;
-                    nextBit2++;
+                    newKey[nextBitNew++] = key2[nextBit2++];
                 }
-                nextBitNew++;
             }
 
             //Insert new value
