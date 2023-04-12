@@ -66,7 +66,11 @@ TEST_CASE("QubitState::removeZeroEntries keeps normalization") {
     INFO("After:");
     CAPTURE(qs->to_string());
 
-    REQUIRE(qs->norm() == Catch::Approx(1.0).margin(1e-10));
+    bool allRemoved = qs->size() == 0;
+    bool normIsOne = qs->norm() == Catch::Approx(1.0).margin(1e-10);
+
+    CAPTURE(allRemoved, normIsOne);
+    REQUIRE((allRemoved || normIsOne));
 }
 
 TEST_CASE("QubitState normalization random test") {

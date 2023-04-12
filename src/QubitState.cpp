@@ -92,7 +92,7 @@ void QubitState::swapIndex(size_t q1, size_t q2) {
         newMap[newKey] += value;
     }
 
-    removeZeroEntries();
+    this->removeZeroEntries();
 }
 
 void QubitState::reorderIndex(size_t oldI, size_t newI) {
@@ -241,15 +241,16 @@ void QubitState::applyGate(const size_t target, const std::array<Complex, 4> mat
 
 void QubitState::removeZeroEntries() {
     auto it = this->map.begin();
+
     while (it != this->map.end()) {
         if (it->second.isZero()) {
-            double scale = it->second.norm();
             it = this->map.erase(it);
-            (*this) *= 1 / sqrt(1 - scale);
         } else {
             it++;
         }
     }
+
+    this->normalize();
 }
 
 bool QubitState::operator==(const QubitState &rhs) const {
