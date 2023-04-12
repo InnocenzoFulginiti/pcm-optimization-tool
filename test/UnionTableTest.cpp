@@ -26,12 +26,12 @@ TEST_CASE("Test UnionTable::minimizeControls Example 1") {
     auto qs = ut[0].getQubitState();
     qs->clear();
     //Values so that 4 => 3, 2, 0
-    (*qs)[0b00000] = 1;
-    (*qs)[0b00001] = 1;
-    (*qs)[0b00100] = 1;
-    (*qs)[0b00101] = 1;
-    (*qs)[0b01101] = 1;
-    (*qs)[0b11101] = 1;
+    (*qs)[BitSet(5, 0b00000)] = 1;
+    (*qs)[BitSet(5, 0b00001)] = 1;
+    (*qs)[BitSet(5, 0b00100)] = 1;
+    (*qs)[BitSet(5, 0b00101)] = 1;
+    (*qs)[BitSet(5, 0b01101)] = 1;
+    (*qs)[BitSet(5, 0b11101)] = 1;
 
     auto ret = ut.minimizeControls({0, 2, 3, 4});
     auto min = ret.second;
@@ -48,12 +48,12 @@ TEST_CASE("Test UnionTable::minimizeControls Example 2") {
     auto qs = ut[0].getQubitState();
     qs->clear();
     //Values so that 4 => 3, 2 => 0, no other implication
-    (*qs)[1] = 1;
-    (*qs)[2] = 1;
-    (*qs)[5] = 1;
-    (*qs)[8] = 1;
-    (*qs)[24] = 1;
-    (*qs)[31] = 1;
+    (*qs)[BitSet(5, 1)] = 1;
+    (*qs)[BitSet(5, 2)] = 1;
+    (*qs)[BitSet(5, 5)] = 1;
+    (*qs)[BitSet(5, 8)] = 1;
+    (*qs)[BitSet(5, 24)] = 1;
+    (*qs)[BitSet(5, 31)] = 1;
 
     auto ret = ut.minimizeControls({0, 2, 3, 4});
     auto min = ret.second;
@@ -72,17 +72,17 @@ TEST_CASE("Test UnionTable::minimizeControls <=>") {
     auto qs = ut[0].getQubitState();
     qs->clear();
     //Values so that 4 => 3, 4 <= 3,0 => 2, no others
-    (*qs)[0b00000] = 1;
-    (*qs)[0b00010] = 1;
-    (*qs)[0b00100] = 1;
-    (*qs)[0b00110] = 1;
-    (*qs)[0b00111] = 1;
-    (*qs)[0b11000] = 1;
-    (*qs)[0b11010] = 1;
-    (*qs)[0b11100] = 1;
-    (*qs)[0b11101] = 1;
-    (*qs)[0b11110] = 1;
-    (*qs)[0b11111] = 1;
+    (*qs)[BitSet(5, 0b00000)] = 1;
+    (*qs)[BitSet(5, 0b00010)] = 1;
+    (*qs)[BitSet(5, 0b00100)] = 1;
+    (*qs)[BitSet(5, 0b00110)] = 1;
+    (*qs)[BitSet(5, 0b00111)] = 1;
+    (*qs)[BitSet(5, 0b11000)] = 1;
+    (*qs)[BitSet(5, 0b11010)] = 1;
+    (*qs)[BitSet(5, 0b11100)] = 1;
+    (*qs)[BitSet(5, 0b11101)] = 1;
+    (*qs)[BitSet(5, 0b11110)] = 1;
+    (*qs)[BitSet(5, 0b11111)] = 1;
 
     auto [act, min] = ut.minimizeControls({0, 2, 3, 4});
 
@@ -105,12 +105,12 @@ TEST_CASE("Test UnionTable::minimizeControls not able to activate") {
     auto qs = ut[0].getQubitState();
     qs->clear();
     //4 => ~3 -> 4 and 3 can not activate, 3 => 2
-    (*qs)[0b00000] = 1;
-    (*qs)[0b00001] = 1;
-    (*qs)[0b00100] = 1;
-    (*qs)[0b00110] = 1;
-    (*qs)[0b01100] = 1;
-    (*qs)[0b10000] = 1;
+    (*qs)[BitSet(5, 0b00000)] = 1;
+    (*qs)[BitSet(5, 0b00001)] = 1;
+    (*qs)[BitSet(5, 0b00100)] = 1;
+    (*qs)[BitSet(5, 0b00110)] = 1;
+    (*qs)[BitSet(5, 0b01100)] = 1;
+    (*qs)[BitSet(5, 0b10000)] = 1;
 
     qs->normalize();
 
@@ -125,18 +125,18 @@ TEST_CASE("Test UnionTable::minimizeControls") {
     UnionTable ut(6);
     ut[0] = TOP::T;
     ut[1].getQubitState()->clear();
-    (*ut[1].getQubitState())[0] = SQRT_2_2;
-    (*ut[1].getQubitState())[1] = SQRT_2_2;
+    (*ut[1].getQubitState())[BitSet(6, 0)] = SQRT_2_2;
+    (*ut[1].getQubitState())[BitSet(6, 1)] = SQRT_2_2;
 
     ut[3] = ut[2];
     ut[3].getQubitState()->clear();
-    (*ut[3].getQubitState())[2] = SQRT_2_2;
-    (*ut[3].getQubitState())[3] = SQRT_2_2;
+    (*ut[3].getQubitState())[BitSet(6, 2)] = SQRT_2_2;
+    (*ut[3].getQubitState())[BitSet(6, 3)] = SQRT_2_2;
 
     ut[4] = ut[5];
     ut[4].getQubitState()->clear();
-    (*ut[4].getQubitState())[0] = SQRT_2_2;
-    (*ut[4].getQubitState())[3] = SQRT_2_2;
+    (*ut[4].getQubitState())[BitSet(6, 0)] = SQRT_2_2;
+    (*ut[4].getQubitState())[BitSet(6, 3)] = SQRT_2_2;
 
     auto res = ut.minimizeControls({0, 1, 2, 3, 4, 5});
 
@@ -183,10 +183,10 @@ TEST_CASE("Test single RXX gate") {
     auto state = ut->operator[](1).getQubitState();
     REQUIRE(state->size() == 4);
 
-    approx(0.5, (*state)[0b00]);
-    approx(0.5, (*state)[0b01]);
-    approx(Complex(0, -0.5), (*state)[0b10]);
-    approx(Complex(0, -0.5), (*state)[0b11]);
+    approx(0.5, (*state)[BitSet(2, 0b00)]);
+    approx(0.5, (*state)[BitSet(2, 0b01)]);
+    approx(Complex(0, -0.5), (*state)[BitSet(2, 0b10)]);
+    approx(Complex(0, -0.5), (*state)[BitSet(2, 0b11)]);
 }
 
 TEST_CASE("Test multiple RXX gates") {

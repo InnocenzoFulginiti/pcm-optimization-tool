@@ -8,19 +8,19 @@
 
 class BitSet {
 public:
-    BitSet() : BitSet(0) {};
-
-    BitSet(int value);
-
-    BitSet(unsigned int value);
-
-    BitSet(size_t value);
-
     BitSet(size_t _size, size_t _value);
 
     BitSet(size_t _size, const BitSet &_copy);
 
     BitSet(size_t _size, const std::vector<bool> &_copy);
+
+    /**
+     *
+     * @param size - Size of the BitSet
+     * @param value - Value to set bits with index [0, numberOfSetValues[ to
+     * @param numberOfSetValues - Number of bits to set to value
+     */
+    BitSet(size_t size, bool value, size_t numberOfSetValues);
 
     ~BitSet() = default;
 
@@ -77,13 +77,11 @@ public:
 
     BitSet &operator>>=(size_t shift);
 
+    bool allTrue(std::vector<size_t> indices) const;
+
     BitSet operator~() const;
 
-    BitSet operator-(const BitSet &other) const;
-
     friend std::ostream &operator<<(std::ostream &os, const BitSet &bitSet);
-
-    bool isZero() const;
 
 //Write method to display value in debugger
     void print(std::ostream &os) const {
@@ -110,8 +108,7 @@ namespace std {
     template<>
     struct hash<BitSet> {
         auto operator()(const BitSet &bs) const -> size_t {
-            BitSet oneSizeCopy(256, bs);
-            return hash<std::vector<bool>>()(oneSizeCopy.getBits());
+            return hash<std::vector<bool>>()(bs.getBits());
         }
     };
 }  // namespace std
