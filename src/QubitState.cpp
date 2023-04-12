@@ -239,15 +239,18 @@ void QubitState::applyGate(const size_t target, const std::array<Complex, 4> mat
 void QubitState::removeZeroEntries() {
     auto it = this->map.begin();
 
+    double removed = 0.0;
+
     while (it != this->map.end()) {
         if (it->second.isZero()) {
+            removed += it->second.norm();
             it = this->map.erase(it);
         } else {
             it++;
         }
     }
 
-    this->normalize();
+    (*this) *= 1 / sqrt(1 - removed);
 }
 
 bool QubitState::operator==(const QubitState &rhs) const {
