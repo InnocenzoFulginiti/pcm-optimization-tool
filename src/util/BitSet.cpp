@@ -33,12 +33,11 @@ BitSet::BitSet(size_t _size, size_t value) {
 
     this->bits = std::vector<bool>(_size, false);
     size_t i = 0;
-    while (value != 0) {
+    while (value != 0 && i < _size) {
         (*this)[i++] = (value & 1);
         value >>= 1;
     }
 }
-
 
 BitSet::BitSet(size_t _size, bool value, size_t numberOfSetValues) {
     this->size = _size;
@@ -62,7 +61,7 @@ bool BitSet::operator<(const BitSet &other) const {
         throw std::runtime_error("BitSets must have same size for operator<");
     }
 
-    if (this->getSize() == 0) return other.getSize() == 0;
+    if (this->getSize() == 0) return false;
 
     for (size_t i = this->getSize() - 1;;) {
         if ((*this)[i] && !other[i]) {
@@ -153,22 +152,6 @@ BitSet BitSet::operator^(const BitSet &other) const {
     }
 
     BitSet ret(this->getSize(), 0);
-
-    if (this->getSize() > other.getSize()) {
-        ret = BitSet(this->getSize(), 0);
-        size_t i = other.getSize();
-        while (i < this->getSize()) {
-            ret[i] = (*this)[i];
-            i++;
-        }
-    } else {
-        ret = BitSet(other.getSize(), 0);
-        size_t i = this->getSize();
-        while (i < this->getSize()) {
-            ret[i] = other[i];
-            i++;
-        }
-    }
 
     for (size_t i = 0; i < this->size; i++) {
         ret[i] = (*this)[i] ^ other[i];

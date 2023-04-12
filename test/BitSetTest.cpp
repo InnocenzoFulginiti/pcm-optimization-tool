@@ -172,12 +172,42 @@ TEST_CASE("BitSet int Constructor", "[BitSet]") {
 }
 
 TEST_CASE("BitSet shift", "[BitSet]") {
-    //TODO
+    size_t a = static_cast<size_t>(GENERATE(take(1, random(0, 10000))));
+    size_t size = static_cast<size_t>(GENERATE(take(1, random(0, 100))));
+    BitSet bs(size, a);
+    size_t shift = static_cast<size_t>(GENERATE(take(1, random(0, 10000)))) % (size + 3);
+
+    INFO("Before:");
+    CAPTURE(a, size, bs, shift);
+
+    SECTION("Shift to the left") {
+        UNSCOPED_INFO("Shift to the left");
+        bs <<= shift;
+        a <<= shift;
+    }
+
+    SECTION("Shift to the right") {
+        UNSCOPED_INFO("Shift to the right");
+        bs >>= shift;
+        a >>= shift;
+    }
+
+    a &= (static_cast<size_t>(1) << size) - 1;
+
+    INFO("After:");
+    CAPTURE(a, bs);
+
+    REQUIRE(bs.getSize() == size);
+
+    bs.setSize(100);
+    auto s = bs.to_string();
+    auto expected = std::bitset<100>(a).to_string();
+    REQUIRE(s == expected);
 }
 
 TEST_CASE("BitSet setSize", "[BitSet]") {
     size_t a = static_cast<size_t>(GENERATE(take(10, random(0, 10000))));
-    size_t la = static_cast<size_t>(GENERATE(take(3, random(0, 255)))) % (8 * sizeof(size_t)) ;
+    size_t la = static_cast<size_t>(GENERATE(take(3, random(0, 255)))) % (8 * sizeof(size_t));
 
     a &= (static_cast<size_t>(1) << la) - 1;
 
@@ -194,3 +224,4 @@ TEST_CASE("BitSet setSize", "[BitSet]") {
 
     REQUIRE(as == BitSet(newSize, a));
 }
+
