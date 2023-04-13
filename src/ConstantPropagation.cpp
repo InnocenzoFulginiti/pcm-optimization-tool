@@ -136,6 +136,9 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     (*table)[i].getQubitState()->applyGate(j, min, {0, 1, 1, 0});
                     (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
                     checkAmplitude(table, maxAmplitudes, i);
+                    if ((*table)[i].isQubitState() && (*table)[i].getQubitState()->size() == 0) {
+                        table->setTop(i);
+                    }
                 }
             }
             continue;
@@ -163,6 +166,13 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                                                             table->indexInState(t2),
                                                             table->indexInState(min),
                                                             twoQubitMat);
+
+            checkAmplitude(table, maxAmplitudes, t1);
+
+            if ((*table)[t1].isQubitState() && (*table)[t1].getQubitState()->size() == 0) {
+                table->setTop(t1);
+            }
+
             continue;
         } else {
             //Single Qubit Gate
