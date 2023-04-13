@@ -295,7 +295,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
         std::cout << "Writing to: " << compareFileName << std::endl;
     }
 
-    auto fileGen = QASMFileGenerator(QASMFileGenerator::ALL);
+    auto fileGen = QASMFileGenerator(QASMFileGenerator::MQT);
 
     size_t i = 0;
     size_t limit = 250;
@@ -336,7 +336,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
-    double threshold = GENERATE(0.0);
+    double threshold = GENERATE(0.0, 1e-5);
 
     benchmarkParameters(maxNAmpls, threshold);
 }

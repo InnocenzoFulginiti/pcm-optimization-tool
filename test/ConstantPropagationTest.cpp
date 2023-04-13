@@ -50,7 +50,7 @@ void testIntermediateResults(qc::QuantumComputation &qc,
 
 
 TEST_CASE("Constant Propagation on small Files") {
-    auto p = GENERATE(take(30, qasmFile(QASMFileGenerator::SIZE::SMALL)));
+    auto p = GENERATE(take(30, qasmFile(QASMFileGenerator::TYPE::QASM_BENCH_SMALL)));
     size_t maxAmplitude = GENERATE(static_cast<size_t> (1), 10);
 
     INFO("File: " + p.string() + "Max Amplitude: " + std::to_string(maxAmplitude));
@@ -179,4 +179,10 @@ TEST_CASE("Try specific file") {
     qc::CircuitOptimizer::flattenOperations(qc);
 
     CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
+}
+
+TEST_CASE("Test findQASM Files") {
+    QASMFileGenerator qasmFileGenerator(QASMFileGenerator::TYPE::MQT);
+
+    REQUIRE(qasmFileGenerator.getSize() == 46513);
 }

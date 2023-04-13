@@ -8,6 +8,7 @@
 
 #define CIRCUITS_PATH "../test/circuits/"
 #define QASM_Bench_Path CIRCUITS_PATH "QASMBench"
+#define MQT_Bench_PATH CIRCUITS_PATH "MQTBench"
 
 #ifndef GIT_COMMIT_HASH
 #define GIT_COMMIT_HASH "?"
@@ -53,18 +54,19 @@ namespace fs = std::filesystem;
 
 class QASMFileGenerator : public Catch::Generators::IGenerator<fs::path> {
 public:
-    enum SIZE {
-        SMALL,
-        MEDIUM,
-        LARGE,
-        ALL
+    enum TYPE {
+        QASM_BENCH_SMALL,
+        QASM_BENCH_MEDIUM,
+        QASM_BENCH_LARGE,
+        QASM_BENCH_ALL,
+        MQT
     };
 
     const fs::path &get() const override {
         return unused.back();
     }
 
-    explicit QASMFileGenerator(SIZE s);
+    explicit QASMFileGenerator(TYPE s);
 
     size_t getSize() const {
         return size;
@@ -79,9 +81,11 @@ private:
     std::string stringifyImpl() const override;
 
     static std::vector<fs::path> findQASMFiles(const std::string &subfolder);
+
+    static std::vector<fs::path> findMQTFiles();
 };
 
-Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::SIZE s);
+Catch::Generators::GeneratorWrapper<fs::path> qasmFile(QASMFileGenerator::TYPE s);
 
 class CircuitMetrics {
 public:
