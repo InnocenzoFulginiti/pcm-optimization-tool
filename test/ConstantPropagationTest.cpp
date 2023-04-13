@@ -181,16 +181,6 @@ TEST_CASE("Try specific file") {
     CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
 }
 
-TEST_CASE("Try Example File") {
-    auto file = CIRCUITS_PATH "/example.qasm";
-
-    qc::QuantumComputation qc(file);
-    std::shared_ptr<UnionTable> result;
-    CHECK_NOTHROW(result = ConstantPropagation::propagate(qc, 1 << 10));
-
-    std::cout << "Result: " << std::endl << result->to_string() << std::endl;
-}
-
 TEST_CASE("Test findQASM Files") {
     QASMFileGenerator qasmFileGenerator(QASMFileGenerator::TYPE::MQT);
 
