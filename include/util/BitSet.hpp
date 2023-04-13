@@ -88,7 +88,7 @@ public:
         os << *this;
     }
 
-    [[nodiscard]] std::vector<bool> getBits() const {
+    [[nodiscard]] const std::vector<bool> &getBits() const {
         return bits;
     }
 
