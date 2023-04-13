@@ -239,9 +239,13 @@ TEST_CASE("Test Reorder Indices") {
     sut.clear();
 
     int key = GENERATE(take(10, random(0, (1 << nQubits) - 1)));
-    INFO("Key: " + std::to_string(key));
+    std::bitset<5> keyBS(static_cast<unsigned long long int>(key));
 
-    sut[key] = Complex(1, 0);
+    INFO("Key: " + std::to_string(key));
+    INFO("Key: " + keyBS.to_string());
+    BitSet keySet(nQubits, static_cast<size_t>(key));
+
+    sut[keySet] = Complex(1, 0);
 
     size_t oldI = static_cast<size_t>(GENERATE(take(5, random(0, nQubits - 1))));
     size_t newI = static_cast<size_t>(GENERATE(take(5, random(0, nQubits - 1))));
@@ -257,5 +261,5 @@ TEST_CASE("Test Reorder Indices") {
     sut.reorderIndex(newI, oldI);
 
     INFO("State after second reorder: " + sut.to_string());
-    CHECK(sut[key] == Complex(1, 0));
+    CHECK(sut[keySet] == Complex(1, 0));
 }

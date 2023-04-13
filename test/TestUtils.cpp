@@ -24,17 +24,18 @@ void approxQubitState(const std::shared_ptr<QubitState> &expected, const std::sh
     double globalPhase = 0;
     bool globalPhaseSet = false;
     for (size_t key = 0; key < (static_cast<size_t>(1) << expected->getNQubits()); key++) {
-        if (!globalPhaseSet && !(*expected)[key].isZero()) {
-            globalPhase = (*expected)[key].arg() - (*actual)[key].arg();
+        BitSet keyBS(expected->getNQubits(), key);
+        if (!globalPhaseSet && !(*expected)[keyBS].isZero()) {
+            globalPhase = (*expected)[keyBS].arg() - (*actual)[keyBS].arg();
             globalPhaseSet = true;
         }
-        CAPTURE(key);
-        CAPTURE((*expected)[key], (*expected)[key].arg(), (*expected)[key].abs());
-        CAPTURE((*actual)[key], (*actual)[key].arg(), (*actual)[key].abs());
+        CAPTURE(key, keyBS);
+        CAPTURE((*expected)[keyBS], (*expected)[keyBS].arg(), (*expected)[keyBS].abs());
+        CAPTURE((*actual)[keyBS], (*actual)[keyBS].arg(), (*actual)[keyBS].abs());
         CAPTURE(globalPhaseSet, globalPhase);
-        Complex actualWithPhase = (*actual)[key] * Complex(0, globalPhase).exp();
+        Complex actualWithPhase = (*actual)[keyBS] * Complex(0, globalPhase).exp();
         CAPTURE(actualWithPhase);
-        approx((*expected)[key], actualWithPhase, epsilon);
+        approx((*expected)[keyBS], actualWithPhase, epsilon);
     }
 }
 
@@ -138,11 +139,13 @@ void compareUnitTableToState(const std::shared_ptr<UnionTable> &ut,
             expected.erase(expected.begin());
         }
 
+        BitSet keyBS(ut->getNQubits(), key);
+
         INFO(std::to_string(key) + " (0b" + BitSet(ut->getNQubits(), key).to_string() + ")");
         INFO("Expected Value:\t" + expectedValue.to_string() + " = mag: " + std::to_string(expectedValue.norm()) +
              " arg: " + std::to_string(expectedValue.arg()) + " +global phase = " +
              std::to_string(expectedValue.arg() + globalPhase));
-        Complex actualValue = (*actualState)[key];
+        Complex actualValue = (*actualState)[keyBS];
         INFO("Actual Value:\t" + actualValue.to_string() + " = mag: " + std::to_string(actualValue.norm()) + " arg: " +
              std::to_string(actualValue.arg()));
 
