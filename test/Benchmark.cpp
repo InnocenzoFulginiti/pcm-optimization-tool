@@ -298,7 +298,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
     auto fileGen = QASMFileGenerator(QASMFileGenerator::MQT);
 
     size_t i = 0;
-    size_t limit = 250;
+    size_t limit = 1800;
 
     Complex::setEpsilon(threshold);
 
@@ -336,7 +336,47 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
-    double threshold = GENERATE(0.0, 1e-5);
+    double threshold = GENERATE(1e-5);
 
     benchmarkParameters(maxNAmpls, threshold);
+}
+
+TEST_CASE("Try graphstate_circuits", "[.]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(4096));
+    double threshold = GENERATE(1e-8);
+
+    std::cout << RUNTIME_HEADER << std::endl;
+
+    auto mqtPaths = QASMFileGenerator(QASMFileGenerator::MQT);
+
+    while (mqtPaths.next()) {
+        const fs::path &file = mqtPaths.get();
+        if (file.string().find("graphstate") == std::string::npos)
+            continue;
+
+        std::cout << file.string();
+
+        tp start = c::steady_clock::now();
+        qc::QuantumComputation qc;
+
+        try {
+            qc = qc::QuantumComputation(file.string());
+        } catch (std::exception &e) {
+            std::cout << "; qfr threw an exception while importing: " << e.what() << ";;;;;;;\n";
+            return;
+        }
+
+        tp end = c::steady_clock::now();
+        long long dur = c::duration_cast<c::microseconds>(end - start).count();
+
+        //parseTime,nQubits,nOpsStart
+        std::cout << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
+
+        qc::QuantumComputation before = qc.clone();
+        double oldThreshold = Complex::getEpsilon();
+        Complex::setEpsilon(threshold);
+        runBenchmark(qc, maxNAmpls, std::cout);
+        Complex::setEpsilon(oldThreshold);
+    }
+
 }

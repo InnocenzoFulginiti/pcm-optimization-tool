@@ -85,11 +85,17 @@ target_include_directories(tests
 
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain
         ${PROJECT_NAME}
+        if (WIN32)
         -static-libgcc -static-libstdc++
+        endif (WIN32)
         )
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
-SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg -static")
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg
+    if(WIN32)
+        -static
+    endif(WIN32)
+")
 SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
