@@ -83,19 +83,22 @@ target_include_directories(tests
         extern/qfr/include
         )
 
-target_link_libraries(tests PRIVATE Catch2::Catch2WithMain
-        ${PROJECT_NAME}
-        if (WIN32)
-        -static-libgcc -static-libstdc++
-        endif (WIN32)
-        )
+
+if (WIN32)
+    SET(EXTRA_FLAGS "-static-libgcc -static-libstdc++")
+else ()
+    SET(EXTRA_FLAGS "")
+endif ()
+
+target_link_libraries(tests PRIVATE Catch2::Catch2WithMain ${PROJECT_NAME} ${EXTRA_FLAGS})
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
-SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg
-    if(WIN32)
-        -static
-    endif(WIN32)
-")
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+
+IF (WIN32)
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+ENDIF ()
+
 SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
