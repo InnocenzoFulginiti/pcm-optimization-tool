@@ -123,7 +123,8 @@ void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &ou
     out << ";" << wasTop << std::endl;
 }
 
-void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s, std::mutex &c_m) {
+void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s,
+                std::mutex &c_m) {
     auto beforeIt = before.begin();
     auto afterIt = after.begin();
 
@@ -237,16 +238,34 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
 
     qc::QuantumComputation before = qc.clone();
 
-    runBenchmark(qc, maxNAmpls, line);
+    try {
+        runBenchmark(qc, maxNAmpls, line);
+    } catch (std::exception &e) {
+        line << "error while running benchmark";
+        std::cout << file.string() << ", error while running benchmark: " << e.what() << std::endl;
+        return;
+    }
     std::string runtimeString = line.str();
-    if(! runtimeString.empty()) {
+    if (!runtimeString.empty()) {
         std::lock_guard<std::mutex> lock(r_m);
         runtimeOut << line.str();
     }
 
     if (COMPARE) {
-        qc::CircuitOptimizer::flattenOperations(before);
-        compareQcs(file, before, qc, compareOut, m_c);
+        try{
+            qc::CircuitOptimizer::flattenOperations(before);
+        } catch(std::exception &e) {
+            line<< "qfr: error while flattening";
+            std::cout << file.string() << ", error while flattening: " << e.what() << std::endl;
+        }
+
+        try {
+            compareQcs(file, before, qc, compareOut, m_c);
+        } catch(std::exception &e) {
+            line<< "error while comparing";
+            std::cout << file.string() << ", error while comparing: " << e.what() << std::endl;
+        }
+
         compareOut.flush();
     }
 
@@ -335,8 +354,8 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
-    double threshold = GENERATE(1e-5);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(512), 1024, 4096);
+    double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold);
 }
