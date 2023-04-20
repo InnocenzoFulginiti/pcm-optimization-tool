@@ -26,6 +26,29 @@ using tp = std::chrono::steady_clock::time_point;
 #define COMPARE true
 #define MULTITHREAD true
 
+//Measure CPU Time (Actual time in thread):
+#ifdef _WIN32
+
+#include <processthreadsapi.h>
+
+double get_cpu_time() {
+    FILETIME a, b, c, d;
+    if (GetProcessTimes(GetCurrentProcess(), &a, &b, &c, &d) != 0) {
+        //  Returns total user (CPU) time.
+        return static_cast<double>(d.dwLowDateTime | (static_cast<unsigned long long>(d.dwHighDateTime) << 32)) *
+               0.0000001;
+    } else {
+        //  Handle error
+        return 0;
+    }
+}
+
+#else
+#ifdef linux
+//TODO: Implement for linux
+#endif
+#endif
+
 class ThreadPool {
 public:
     explicit ThreadPool(size_t numThreads) {
@@ -93,24 +116,21 @@ private:
 };
 
 void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out) {
-    tp start, end;
-    long long dur;
+    double start, end;
 
-    start = c::steady_clock::now();
+    start = get_cpu_time();
     qc::CircuitOptimizer::flattenOperations(qc);
-    end = c::steady_clock::now();
-    dur = c::duration_cast<c::microseconds>(end - start).count();
+    end = get_cpu_time();
 
     //flattenTime,nOpsAfterInline
-    out << ";" << dur << ";" << qc.getNops();
+    out << ";" << (end - start) << ";" << qc.getNops();
 
-    start = c::steady_clock::now();
+    start = get_cpu_time();
     auto ut = ConstantPropagation::propagate(qc, maxNAmpls);
-    end = c::steady_clock::now();
-    dur = c::duration_cast<c::microseconds>(end - start).count();
+    end = get_cpu_time();
 
     //propagateTime,nOpsAfterPropagate
-    out << ";" << dur << ";" << qc.getNops();
+    out << ";" << (end - start) << ";" << qc.getNops();
 
     size_t wasTop = 0;
     for (auto &qs: *ut) {
@@ -220,7 +240,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     std::stringstream line;
     line << file.string();
 
-    tp start = c::steady_clock::now();
+    double start = get_cpu_time();
     qc::QuantumComputation qc;
 
     try {
@@ -230,11 +250,10 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
         return;
     }
 
-    tp end = c::steady_clock::now();
-    long long dur = c::duration_cast<c::microseconds>(end - start).count();
+    double end = get_cpu_time();
 
     //parseTime,nQubits,nOpsStart
-    line << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
+    line << ";" << (end - start) << ";" << qc.getNqubits() << ";" << qc.getNops();
 
     qc::QuantumComputation before = qc.clone();
 
@@ -269,12 +288,11 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
         compareOut.flush();
     }
 
-    end = c::steady_clock::now();
-    dur = c::duration_cast<c::microseconds>(end - start).count();
-    std::cout << file.string() << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
+    end = get_cpu_time();
+    std::cout << file.string() << ", done in " << (end - start) << "s" << std::endl;
 }
 
-void benchmarkParameters(size_t maxNAmpls, double threshold) {
+void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &fileFilter = std::regex(".*")) {
     std::cout << "Benchmarking with maxNAmpls=" << maxNAmpls << " and threshold=" << threshold << std::endl;
 
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
@@ -327,6 +345,9 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 
     while (fileGen.next() && i++ < limit) {
         const fs::path &file = fileGen.get();
+        if (!std::regex_match(file.string(), fileFilter)) {
+            continue;
+        }
 
         futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
             processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
@@ -360,42 +381,16 @@ TEST_CASE("Test Circuit Performance", "[!benchmark]") {
     benchmarkParameters(maxNAmpls, threshold);
 }
 
-TEST_CASE("Try graphstate_circuits", "[.]") {
+TEST_CASE("graphstate", "[.]") {
     size_t maxNAmpls = GENERATE(static_cast<size_t>(4096));
     double threshold = GENERATE(1e-8);
 
-    std::cout << RUNTIME_HEADER << std::endl;
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*graphstate_indep_qiskit_.*"));
+}
 
-    auto mqtPaths = QASMFileGenerator(QASMFileGenerator::MQT);
+TEST_CASE("qpeexact", "[.]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    double threshold = GENERATE(1e-8);
 
-    while (mqtPaths.next()) {
-        const fs::path &file = mqtPaths.get();
-        if (file.string().find("graphstate") == std::string::npos)
-            continue;
-
-        std::cout << file.string();
-
-        tp start = c::steady_clock::now();
-        qc::QuantumComputation qc;
-
-        try {
-            qc = qc::QuantumComputation(file.string());
-        } catch (std::exception &e) {
-            std::cout << "; qfr threw an exception while importing: " << e.what() << ";;;;;;;\n";
-            return;
-        }
-
-        tp end = c::steady_clock::now();
-        long long dur = c::duration_cast<c::microseconds>(end - start).count();
-
-        //parseTime,nQubits,nOpsStart
-        std::cout << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
-
-        qc::QuantumComputation before = qc.clone();
-        double oldThreshold = Complex::getEpsilon();
-        Complex::setEpsilon(threshold);
-        runBenchmark(qc, maxNAmpls, std::cout);
-        Complex::setEpsilon(oldThreshold);
-    }
-
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*qpeexact_indep_qiskit.*"));
 }
