@@ -24,7 +24,7 @@ using tp = std::chrono::steady_clock::time_point;
 #define RUNTIME_FILENAME "runtime.csv"
 
 #define COMPARE true
-#define MULTITHREAD true
+#define MULTITHREAD false
 
 class ThreadPool {
 public:
