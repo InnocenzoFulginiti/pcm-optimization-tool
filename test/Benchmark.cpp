@@ -35,8 +35,10 @@ double get_cpu_time() {
     FILETIME a, b, c, d;
     if (GetProcessTimes(GetCurrentProcess(), &a, &b, &c, &d) != 0) {
         //  Returns total user (CPU) time.
-        return static_cast<double>(d.dwLowDateTime | (static_cast<unsigned long long>(d.dwHighDateTime) << 32)) *
-               0.0000001;
+        return static_cast<double>(((static_cast<unsigned long long>(1) << 41) - 1) &
+                                   //Limit to 40bit for better double resolution (max Time is now ~30h)
+                                   (d.dwLowDateTime | (static_cast<unsigned long long>(d.dwHighDateTime) << 32))) *
+               0.0000001; //Resolution = 100ns
     } else {
         //  Handle error
         return 0;
@@ -271,17 +273,17 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     }
 
     if (COMPARE) {
-        try{
+        try {
             qc::CircuitOptimizer::flattenOperations(before);
-        } catch(std::exception &e) {
-            line<< "qfr: error while flattening";
+        } catch (std::exception &e) {
+            line << "qfr: error while flattening";
             std::cout << file.string() << ", error while flattening: " << e.what() << std::endl;
         }
 
         try {
             compareQcs(file, before, qc, compareOut, m_c);
-        } catch(std::exception &e) {
-            line<< "error while comparing";
+        } catch (std::exception &e) {
+            line << "error while comparing";
             std::cout << file.string() << ", error while comparing: " << e.what() << std::endl;
         }
 
