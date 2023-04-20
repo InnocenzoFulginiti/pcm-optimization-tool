@@ -26,31 +26,6 @@ using tp = std::chrono::steady_clock::time_point;
 #define COMPARE true
 #define MULTITHREAD true
 
-//Measure CPU Time (Actual time in thread):
-#ifdef _WIN32
-
-#include <processthreadsapi.h>
-
-double get_cpu_time() {
-    FILETIME a, b, c, d;
-    if (GetProcessTimes(GetCurrentProcess(), &a, &b, &c, &d) != 0) {
-        //  Returns total user (CPU) time.
-        return static_cast<double>(((static_cast<unsigned long long>(1) << 41) - 1) &
-                                   //Limit to 40bit for better double resolution (max Time is now ~30h)
-                                   (d.dwLowDateTime | (static_cast<unsigned long long>(d.dwHighDateTime) << 32))) *
-               0.0000001; //Resolution = 100ns
-    } else {
-        //  Handle error
-        return 0;
-    }
-}
-
-#else
-#ifdef linux
-//TODO: Implement for linux
-#endif
-#endif
-
 class ThreadPool {
 public:
     explicit ThreadPool(size_t numThreads) {
@@ -118,21 +93,24 @@ private:
 };
 
 void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out) {
-    double start, end;
+    tp start, end;
+    long long dur;
 
-    start = get_cpu_time();
+    start = c::steady_clock::now();
     qc::CircuitOptimizer::flattenOperations(qc);
-    end = get_cpu_time();
+    end = c::steady_clock::now();
+    dur = c::duration_cast<c::microseconds>(end - start).count();
 
     //flattenTime,nOpsAfterInline
-    out << ";" << (end - start) << ";" << qc.getNops();
+    out << ";" << dur << ";" << qc.getNops();
 
-    start = get_cpu_time();
+    start = c::steady_clock::now();
     auto ut = ConstantPropagation::propagate(qc, maxNAmpls);
-    end = get_cpu_time();
+    end = c::steady_clock::now();
+    dur = c::duration_cast<c::microseconds>(end - start).count();
 
     //propagateTime,nOpsAfterPropagate
-    out << ";" << (end - start) << ";" << qc.getNops();
+    out << ";" << dur << ";" << qc.getNops();
 
     size_t wasTop = 0;
     for (auto &qs: *ut) {
@@ -242,7 +220,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     std::stringstream line;
     line << file.string();
 
-    double start = get_cpu_time();
+    tp start = c::steady_clock::now();
     qc::QuantumComputation qc;
 
     try {
@@ -252,10 +230,11 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
         return;
     }
 
-    double end = get_cpu_time();
+    tp end = c::steady_clock::now();
+    long long dur = c::duration_cast<c::microseconds>(end - start).count();
 
     //parseTime,nQubits,nOpsStart
-    line << ";" << (end - start) << ";" << qc.getNqubits() << ";" << qc.getNops();
+    line << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
 
     qc::QuantumComputation before = qc.clone();
 
@@ -290,8 +269,9 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
         compareOut.flush();
     }
 
-    end = get_cpu_time();
-    std::cout << file.string() << ", done in " << (end - start) << "s" << std::endl;
+    end = c::steady_clock::now();
+    dur = c::duration_cast<c::microseconds>(end - start).count();
+    std::cout << file.string() << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
 }
 
 void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &fileFilter = std::regex(".*")) {
@@ -335,30 +315,48 @@ void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &f
     }
 
     auto fileGen = QASMFileGenerator(QASMFileGenerator::MQT);
+    std::vector<fs::path> files;
+    do{
+        if(std::regex_match(fileGen.get().string(), fileFilter))
+            files.push_back(fileGen.get());
+    } while(fileGen.next());
+
+    std::cout << "Found " << files.size() << " files" << std::endl;
 
     size_t i = 0;
     size_t limit = 1800;
+    size_t todo = std::min(files.size(), limit);
 
     Complex::setEpsilon(threshold);
 
-    ThreadPool pool(MULTITHREAD ? std::thread::hardware_concurrency() : 1);
-    std::cout << "Using " << pool.size() << " threads" << std::endl;
-    std::vector<std::future<void>> futures;
+    if (MULTITHREAD) {
+        ThreadPool pool(std::thread::hardware_concurrency());
+        std::cout << "Using " << pool.size() << " threads" << std::endl;
+        std::vector<std::future<void>> futures;
 
-    while (fileGen.next() && i++ < limit) {
-        const fs::path &file = fileGen.get();
-        if (!std::regex_match(file.string(), fileFilter)) {
-            continue;
+        while (i < limit) {
+            const fs::path &file = files.at(i++);
+
+            futures.emplace_back(
+                    pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
+                        processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
+                    }));
         }
 
-        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
-            processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
-        }));
-    }
+        for (auto &future: futures) {
+            future.wait();
+        }
+    } else {
+        std::cout << "Using single thread" << std::endl;
 
-    std::stringstream ss;
-    for (auto &future: futures) {
-        future.wait();
+        while (i < todo) {
+            const fs::path &file = files[i++];
+            std::cout << i  << "/" << todo << " ";
+            std::cout << "Processing " << file.string();
+            std::cout.flush();
+
+            processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
+        }
     }
 
     compareOut.close();
@@ -377,7 +375,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &f
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(512), 1024, 4096);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(4096), 1024, 512);
     double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold);
@@ -387,11 +385,11 @@ TEST_CASE("graphstate", "[.]") {
     size_t maxNAmpls = GENERATE(static_cast<size_t>(4096));
     double threshold = GENERATE(1e-8);
 
-    benchmarkParameters(maxNAmpls, threshold, std::regex(".*graphstate_indep_qiskit_.*"));
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*graphstate_indep_qiskit.*"));
 }
 
 TEST_CASE("qpeexact", "[.]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(16), 32, 64, 128, 256, 512, 2048);
     double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold, std::regex(".*qpeexact_indep_qiskit.*"));
