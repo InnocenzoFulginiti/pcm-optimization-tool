@@ -41,6 +41,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     while (it != qc.end()) {
         auto op = (*it).get();
         it++;
+
+        if(table->allTop()) {
+            newQc.emplace_back(op->clone());
+            continue;
+        }
+
         //Gates that can be ignored
         if (op->getType() == qc::Barrier ||
             op->getType() == qc::Snapshot ||
