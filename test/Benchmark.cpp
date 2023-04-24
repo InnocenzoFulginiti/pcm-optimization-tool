@@ -252,17 +252,17 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     }
 
     if (COMPARE) {
-        try{
+        try {
             qc::CircuitOptimizer::flattenOperations(before);
-        } catch(std::exception &e) {
-            line<< "qfr: error while flattening";
+        } catch (std::exception &e) {
+            line << "qfr: error while flattening";
             std::cout << file.string() << ", error while flattening: " << e.what() << std::endl;
         }
 
         try {
             compareQcs(file, before, qc, compareOut, m_c);
-        } catch(std::exception &e) {
-            line<< "error while comparing";
+        } catch (std::exception &e) {
+            line << "error while comparing";
             std::cout << file.string() << ", error while comparing: " << e.what() << std::endl;
         }
 
@@ -354,7 +354,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(512), 1024, 4096);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(4096), 1024, 512);
     double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold);
@@ -397,5 +397,37 @@ TEST_CASE("Try graphstate_circuits", "[.]") {
         runBenchmark(qc, maxNAmpls, std::cout);
         Complex::setEpsilon(oldThreshold);
     }
+}
 
+TEST_CASE("Detailed Progress", "[.]") {
+    qc::QuantumComputation qc("../test/circuits/mqt/grover-v-chain_indep_qiskit_25.qasm");
+    std::cout << "Parsing done" << std::endl;
+    std::shared_ptr<UnionTable> table = std::make_shared<UnionTable>(qc.getNqubits());
+
+    size_t i = 0;
+    size_t maxNAmpls = 2048;
+    size_t nOps = qc.getNops();
+    for (auto const &op: qc) {
+        qc::QuantumComputation singleOp(qc.getNqubits());
+        singleOp.emplace_back(op->clone());
+
+        std::cout << i++ << "/" << nOps << ": Propagating " << op->getName() << ", Controls "
+                  << std::accumulate(op->getControls().begin(), op->getControls().end(), std::string(),
+                                     [](const auto &a, const qc::Control &b) {
+                                         return a + std::to_string(b.qubit) + ",";
+                                     })
+                  << ", Targets "
+                  << std::accumulate(op->getTargets().begin(), op->getTargets().end(), std::string(),
+                                     [](const auto &a, const qc::Qubit &b) {
+                                         return a + std::to_string(b) + ",";
+                                     })
+                  << std::endl;
+        ConstantPropagation::propagate(singleOp, maxNAmpls, table);
+
+        for (size_t j = 0; j < qc.getNqubits(); j++) {
+            std::cout << "Qubit " << j << ": " <<
+                      << "\n";
+        }
+        std::cout << std::endl;
+    }
 }
