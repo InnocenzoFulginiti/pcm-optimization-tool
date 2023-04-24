@@ -274,7 +274,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     std::cout << file.string() << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
 }
 
-void benchmarkParameters(size_t maxNAmpls, double threshold) {
+void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &fileFilter = std::regex(".*")) {
     std::cout << "Benchmarking with maxNAmpls=" << maxNAmpls << " and threshold=" << threshold << std::endl;
 
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
@@ -327,6 +327,9 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 
     while (fileGen.next() && i++ < limit) {
         const fs::path &file = fileGen.get();
+        if (!std::regex_match(file.string(), fileFilter)) {
+            continue;
+        }
 
         futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
             processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
@@ -354,49 +357,24 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(4096), 1024, 512);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(512), 1024, 4096);
     double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold);
 }
 
-TEST_CASE("Try graphstate_circuits", "[.]") {
+TEST_CASE("graphstate", "[.]") {
     size_t maxNAmpls = GENERATE(static_cast<size_t>(4096));
     double threshold = GENERATE(1e-8);
 
-    std::cout << RUNTIME_HEADER << std::endl;
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*graphstate_indep_qiskit_.*"));
+}
 
-    auto mqtPaths = QASMFileGenerator(QASMFileGenerator::MQT);
+TEST_CASE("qpeexact", "[.]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    double threshold = GENERATE(1e-8);
 
-    while (mqtPaths.next()) {
-        const fs::path &file = mqtPaths.get();
-        if (file.string().find("graphstate") == std::string::npos)
-            continue;
-
-        std::cout << file.string();
-
-        tp start = c::steady_clock::now();
-        qc::QuantumComputation qc;
-
-        try {
-            qc = qc::QuantumComputation(file.string());
-        } catch (std::exception &e) {
-            std::cout << "; qfr threw an exception while importing: " << e.what() << ";;;;;;;\n";
-            return;
-        }
-
-        tp end = c::steady_clock::now();
-        long long dur = c::duration_cast<c::microseconds>(end - start).count();
-
-        //parseTime,nQubits,nOpsStart
-        std::cout << ";" << dur << ";" << qc.getNqubits() << ";" << qc.getNops();
-
-        qc::QuantumComputation before = qc.clone();
-        double oldThreshold = Complex::getEpsilon();
-        Complex::setEpsilon(threshold);
-        runBenchmark(qc, maxNAmpls, std::cout);
-        Complex::setEpsilon(oldThreshold);
-    }
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*qpeexact_indep_qiskit.*"));
 }
 
 TEST_CASE("Detailed Progress", "[.]") {
@@ -426,6 +404,7 @@ TEST_CASE("Detailed Progress", "[.]") {
 
         for (size_t j = 0; j < qc.getNqubits(); j++) {
             std::cout << "Qubit " << j << ": " <<
+
                       << "\n";
         }
         std::cout << std::endl;
