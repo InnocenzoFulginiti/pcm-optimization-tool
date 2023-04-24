@@ -315,30 +315,48 @@ void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &f
     }
 
     auto fileGen = QASMFileGenerator(QASMFileGenerator::MQT);
+    std::vector<fs::path> files;
+    do{
+        if(std::regex_match(fileGen.get().string(), fileFilter))
+            files.push_back(fileGen.get());
+    } while(fileGen.next());
+
+    std::cout << "Found " << files.size() << " files" << std::endl;
 
     size_t i = 0;
     size_t limit = 1800;
+    size_t todo = std::min(files.size(), limit);
 
     Complex::setEpsilon(threshold);
 
-    ThreadPool pool(MULTITHREAD ? std::thread::hardware_concurrency() : 1);
-    std::cout << "Using " << pool.size() << " threads" << std::endl;
-    std::vector<std::future<void>> futures;
+    if (MULTITHREAD) {
+        ThreadPool pool(std::thread::hardware_concurrency());
+        std::cout << "Using " << pool.size() << " threads" << std::endl;
+        std::vector<std::future<void>> futures;
 
-    while (fileGen.next() && i++ < limit) {
-        const fs::path &file = fileGen.get();
-        if (!std::regex_match(file.string(), fileFilter)) {
-            continue;
+        while (i < limit) {
+            const fs::path &file = files.at(i++);
+
+            futures.emplace_back(
+                    pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
+                        processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
+                    }));
         }
 
-        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
-            processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
-        }));
-    }
+        for (auto &future: futures) {
+            future.wait();
+        }
+    } else {
+        std::cout << "Using single thread" << std::endl;
 
-    std::stringstream ss;
-    for (auto &future: futures) {
-        future.wait();
+        while (i < todo) {
+            const fs::path &file = files[i++];
+            std::cout << i  << "/" << todo << " ";
+            std::cout << "Processing " << file.string();
+            std::cout.flush();
+
+            processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
+        }
     }
 
     compareOut.close();
@@ -367,46 +385,12 @@ TEST_CASE("graphstate", "[.]") {
     size_t maxNAmpls = GENERATE(static_cast<size_t>(4096));
     double threshold = GENERATE(1e-8);
 
-    benchmarkParameters(maxNAmpls, threshold, std::regex(".*graphstate_indep_qiskit_.*"));
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*graphstate_indep_qiskit.*"));
 }
 
 TEST_CASE("qpeexact", "[.]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(16), 32, 64, 128, 256, 512, 2048);
     double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold, std::regex(".*qpeexact_indep_qiskit.*"));
-}
-
-TEST_CASE("Detailed Progress", "[.]") {
-    qc::QuantumComputation qc("../test/circuits/mqt/grover-v-chain_indep_qiskit_25.qasm");
-    std::cout << "Parsing done" << std::endl;
-    std::shared_ptr<UnionTable> table = std::make_shared<UnionTable>(qc.getNqubits());
-
-    size_t i = 0;
-    size_t maxNAmpls = 2048;
-    size_t nOps = qc.getNops();
-    for (auto const &op: qc) {
-        qc::QuantumComputation singleOp(qc.getNqubits());
-        singleOp.emplace_back(op->clone());
-
-        std::cout << i++ << "/" << nOps << ": Propagating " << op->getName() << ", Controls "
-                  << std::accumulate(op->getControls().begin(), op->getControls().end(), std::string(),
-                                     [](const auto &a, const qc::Control &b) {
-                                         return a + std::to_string(b.qubit) + ",";
-                                     })
-                  << ", Targets "
-                  << std::accumulate(op->getTargets().begin(), op->getTargets().end(), std::string(),
-                                     [](const auto &a, const qc::Qubit &b) {
-                                         return a + std::to_string(b) + ",";
-                                     })
-                  << std::endl;
-        ConstantPropagation::propagate(singleOp, maxNAmpls, table);
-
-        for (size_t j = 0; j < qc.getNqubits(); j++) {
-            std::cout << "Qubit " << j << ": " <<
-
-                      << "\n";
-        }
-        std::cout << std::endl;
-    }
 }
