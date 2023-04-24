@@ -132,9 +132,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 if ((*table)[i].isTop()) {
                     continue;
                 } else {
-                    (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
-                    (*table)[i].getQubitState()->applyGate(j, min, {0, 1, 1, 0});
-                    (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
+                    auto inStateI = table->indexInState(i);
+                    auto inStateJ = table->indexInState(j);
+                    auto inStateMin = table->indexInState(min);
+                    (*table)[i].getQubitState()->applyGate(inStateI, {inStateJ}, {0, 1, 1, 0});
+                    (*table)[i].getQubitState()->applyGate(inStateJ, inStateMin, {0, 1, 1, 0});
+                    (*table)[i].getQubitState()->applyGate(inStateI, {inStateJ}, {0, 1, 1, 0});
                     checkAmplitude(table, maxAmplitudes, i);
                     if ((*table)[i].isQubitState() && (*table)[i].getQubitState()->size() == 0) {
                         table->setTop(i);
