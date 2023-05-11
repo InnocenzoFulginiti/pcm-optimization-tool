@@ -22,9 +22,11 @@ using tp = std::chrono::steady_clock::time_point;
 #define INFO_FILENAME "info.csv"
 #define REDUCTION_FILENAME "reduction.csv"
 #define RUNTIME_FILENAME "runtime.csv"
+#define OUTPUT_FOLDER MQT_Bench_PATH "/../MQT-OUTPUT"
 
 #define COMPARE true
-#define MULTITHREAD true
+#define MULTITHREAD false
+#define WRITE_OUTPUT true
 
 class ThreadPool {
 public:
@@ -92,7 +94,7 @@ private:
     bool m_stop = false;
 };
 
-void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out) {
+void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out, const fs::path &file) {
     tp start, end;
     long long dur;
 
@@ -111,6 +113,20 @@ void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &ou
 
     //propagateTime,nOpsAfterPropagate
     out << ";" << dur << ";" << qc.getNops();
+
+    if (WRITE_OUTPUT) {
+        fs::path outFolder = OUTPUT_FOLDER;
+        create_directory(outFolder); //Like mkdir
+        std::stringstream outputFileName;
+        outputFileName << outFolder.string()
+                       << "/" << file.stem().string()
+                       << "_" << maxNAmpls
+                       << "_" << Complex::getEpsilon() << ".qasm";
+
+        std::ofstream output(outputFileName.str(), std::ofstream::out | std::ofstream::trunc);
+        qc.dumpOpenQASM(output);
+        output.close();
+    }
 
     size_t wasTop = 0;
     for (auto &qs: *ut) {
@@ -239,7 +255,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     qc::QuantumComputation before = qc.clone();
 
     try {
-        runBenchmark(qc, maxNAmpls, line);
+        runBenchmark(qc, maxNAmpls, line, file);
     } catch (std::exception &e) {
         line << "error while running benchmark";
         std::cout << file.string() << ", error while running benchmark: " << e.what() << std::endl;
@@ -316,10 +332,10 @@ void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &f
 
     auto fileGen = QASMFileGenerator(QASMFileGenerator::MQT);
     std::vector<fs::path> files;
-    do{
-        if(std::regex_match(fileGen.get().string(), fileFilter))
+    do {
+        if (std::regex_match(fileGen.get().string(), fileFilter))
             files.push_back(fileGen.get());
-    } while(fileGen.next());
+    } while (fileGen.next());
 
     std::cout << "Found " << files.size() << " files" << std::endl;
 
@@ -351,7 +367,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &f
 
         while (i < todo) {
             const fs::path &file = files[i++];
-            std::cout << i  << "/" << todo << " ";
+            std::cout << i << "/" << todo << " ";
             std::cout << "Processing " << file.string();
             std::cout.flush();
 
@@ -375,7 +391,7 @@ void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &f
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(512), 1024, 4096);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024), 4096);
     double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold);
@@ -389,8 +405,15 @@ TEST_CASE("graphstate", "[.]") {
 }
 
 TEST_CASE("qpeexact", "[.]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(16), 32, 64, 128, 256, 512, 2048);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
     double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold, std::regex(".*qpeexact_indep_qiskit.*"));
+}
+
+TEST_CASE("qwalk-v-chain_indep_qiskit_75", "[.]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    double threshold = GENERATE(1e-8);
+
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*qwalk-v-chain_indep_qiskit_75.*"));
 }
