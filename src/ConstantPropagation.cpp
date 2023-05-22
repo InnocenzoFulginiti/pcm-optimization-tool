@@ -18,16 +18,11 @@ bool ConstantPropagation::checkAmplitude(const std::shared_ptr<UnionTable> &tabl
     return false;
 }
 
-[[maybe_unused]] bool
+void
 ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes) {
-    return std::any_of(table->begin(), table->end(), [&](auto const &u) {
-        if (u.isQubitState()) {
-            if (u.getQubitState()->size() > maxAmplitudes) {
-                return true;
-            }
-        }
-        return false;
-    });
+    for (size_t i = 0; i < table->size(); i++) {
+        checkAmplitude(table, maxAmplitudes, i);
+    }
 }
 
 void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes,
@@ -42,7 +37,9 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         auto op = (*it).get();
         it++;
 
-        if(table->allTop()) {
+        checkAmplitudes(table, maxAmplitudes);
+
+        if (table->allTop()) {
             newQc.emplace_back(op->clone());
             continue;
         }
