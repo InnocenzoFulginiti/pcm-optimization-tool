@@ -30,8 +30,7 @@ class Qcprop(TransformationPass):
         
         new_circ_str = optimize(circ_str, self.maxAmpls, self.threshold)
 
-        new_qc = QuantumCircuit()
-        new_qc.from_qasm_str(new_circ_str)
+        new_qc = QuantumCircuit.from_qasm_str(new_circ_str)
         
         return circuit_to_dag(new_qc)
 
