@@ -18,16 +18,11 @@ bool ConstantPropagation::checkAmplitude(const std::shared_ptr<UnionTable> &tabl
     return false;
 }
 
-[[maybe_unused]] bool
+void
 ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes) {
-    return std::any_of(table->begin(), table->end(), [&](auto const &u) {
-        if (u.isQubitState()) {
-            if (u.getQubitState()->size() > maxAmplitudes) {
-                return true;
-            }
-        }
-        return false;
-    });
+    for (size_t i = 0; i < table->size(); i++) {
+        checkAmplitude(table, maxAmplitudes, i);
+    }
 }
 
 void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes,
@@ -41,6 +36,14 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     while (it != qc.end()) {
         auto op = (*it).get();
         it++;
+
+        checkAmplitudes(table, maxAmplitudes);
+
+        if (table->allTop()) {
+            newQc.emplace_back(op->clone());
+            continue;
+        }
+
         //Gates that can be ignored
         if (op->getType() == qc::Barrier ||
             op->getType() == qc::Snapshot ||
@@ -132,9 +135,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 if ((*table)[i].isTop()) {
                     continue;
                 } else {
-                    (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
-                    (*table)[i].getQubitState()->applyGate(j, min, {0, 1, 1, 0});
-                    (*table)[i].getQubitState()->applyGate(i, {j}, {0, 1, 1, 0});
+                    auto inStateI = table->indexInState(i);
+                    auto inStateJ = table->indexInState(j);
+                    auto inStateMin = table->indexInState(min);
+                    (*table)[i].getQubitState()->applyGate(inStateI, {inStateJ}, {0, 1, 1, 0});
+                    (*table)[i].getQubitState()->applyGate(inStateJ, inStateMin, {0, 1, 1, 0});
+                    (*table)[i].getQubitState()->applyGate(inStateI, {inStateJ}, {0, 1, 1, 0});
                     checkAmplitude(table, maxAmplitudes, i);
                     if ((*table)[i].isQubitState() && (*table)[i].getQubitState()->size() == 0) {
                         table->setTop(i);

@@ -8,7 +8,7 @@
 
 #define CIRCUITS_PATH "../test/circuits/"
 #define QASM_Bench_Path CIRCUITS_PATH "QASMBench"
-#define MQT_Bench_PATH CIRCUITS_PATH "MQTBench"
+#define MQT_Bench_PATH CIRCUITS_PATH "mqt"
 
 #ifndef GIT_COMMIT_HASH
 #define GIT_COMMIT_HASH "?"

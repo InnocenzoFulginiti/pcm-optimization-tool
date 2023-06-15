@@ -83,14 +83,28 @@ target_include_directories(tests
         extern/qfr/include
         )
 
-target_link_libraries(tests PRIVATE Catch2::Catch2WithMain
-        ${PROJECT_NAME}
-        -static-libgcc -static-libstdc++
-        )
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
-SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg -static")
-SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
+if (WIN32)
+    SET(EXTRA_FLAGS "-static-libgcc -static-libstdc++")
+else ()
+    SET(EXTRA_FLAGS "")
+endif ()
+
+target_link_libraries(tests PRIVATE Catch2::Catch2WithMain ${PROJECT_NAME} ${EXTRA_FLAGS})
+
+if (NOT CMAKE_BUILD_TYPE MATCHES Release)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
+endif ()
+
+if (CMAKE_BUILD_TYPE MATCHES Release)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+endif ()
+
+IF (WIN32)
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+ENDIF ()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

@@ -65,9 +65,12 @@ public:
         return nQubits;
     }
 
+    [[nodiscard]] bool allTop();
+
 private:
     size_t nQubits;
     QubitStateOrTop *quReg;
+    bool allTopState = false;
 
     bool isAlwaysOne(size_t q);
 

@@ -22,9 +22,11 @@ using tp = std::chrono::steady_clock::time_point;
 #define INFO_FILENAME "info.csv"
 #define REDUCTION_FILENAME "reduction.csv"
 #define RUNTIME_FILENAME "runtime.csv"
+#define OUTPUT_FOLDER MQT_Bench_PATH "/../MQT-OUTPUT"
 
 #define COMPARE true
-#define MULTITHREAD true
+#define MULTITHREAD false
+#define WRITE_OUTPUT true
 
 class ThreadPool {
 public:
@@ -92,7 +94,7 @@ private:
     bool m_stop = false;
 };
 
-void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out) {
+void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &out, const fs::path &file) {
     tp start, end;
     long long dur;
 
@@ -112,6 +114,20 @@ void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &ou
     //propagateTime,nOpsAfterPropagate
     out << ";" << dur << ";" << qc.getNops();
 
+    if (WRITE_OUTPUT) {
+        fs::path outFolder = OUTPUT_FOLDER;
+        create_directory(outFolder); //Like mkdir
+        std::stringstream outputFileName;
+        outputFileName << outFolder.string()
+                       << "/" << file.stem().string()
+                       << "_" << maxNAmpls
+                       << "_" << Complex::getEpsilon() << ".qasm";
+
+        std::ofstream output(outputFileName.str(), std::ofstream::out | std::ofstream::trunc);
+        qc.dumpOpenQASM(output);
+        output.close();
+    }
+
     size_t wasTop = 0;
     for (auto &qs: *ut) {
         if (qs.isTop()) {
@@ -123,7 +139,8 @@ void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &ou
     out << ";" << wasTop << std::endl;
 }
 
-void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s, std::mutex &c_m) {
+void compareQcs(const fs::path &file, qc::QuantumComputation &before, qc::QuantumComputation &after, std::ostream &s,
+                std::mutex &c_m) {
     auto beforeIt = before.begin();
     auto afterIt = after.begin();
 
@@ -237,16 +254,34 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
 
     qc::QuantumComputation before = qc.clone();
 
-    runBenchmark(qc, maxNAmpls, line);
+    try {
+        runBenchmark(qc, maxNAmpls, line, file);
+    } catch (std::exception &e) {
+        line << "error while running benchmark";
+        std::cout << file.string() << ", error while running benchmark: " << e.what() << std::endl;
+        return;
+    }
     std::string runtimeString = line.str();
-    if(! runtimeString.empty()) {
+    if (!runtimeString.empty()) {
         std::lock_guard<std::mutex> lock(r_m);
         runtimeOut << line.str();
     }
 
     if (COMPARE) {
-        qc::CircuitOptimizer::flattenOperations(before);
-        compareQcs(file, before, qc, compareOut, m_c);
+        try {
+            qc::CircuitOptimizer::flattenOperations(before);
+        } catch (std::exception &e) {
+            line << "qfr: error while flattening";
+            std::cout << file.string() << ", error while flattening: " << e.what() << std::endl;
+        }
+
+        try {
+            compareQcs(file, before, qc, compareOut, m_c);
+        } catch (std::exception &e) {
+            line << "error while comparing";
+            std::cout << file.string() << ", error while comparing: " << e.what() << std::endl;
+        }
+
         compareOut.flush();
     }
 
@@ -255,7 +290,7 @@ processFile(const fs::path &file, std::ostream &runtimeOut, std::ostream &compar
     std::cout << file.string() << ", done in " << static_cast<double>(dur) / 1e6 << "s" << std::endl;
 }
 
-void benchmarkParameters(size_t maxNAmpls, double threshold) {
+void benchmarkParameters(size_t maxNAmpls, double threshold, const std::regex &fileFilter = std::regex(".*")) {
     std::cout << "Benchmarking with maxNAmpls=" << maxNAmpls << " and threshold=" << threshold << std::endl;
 
     std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
@@ -296,27 +331,48 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
     }
 
     auto fileGen = QASMFileGenerator(QASMFileGenerator::MQT);
+    std::vector<fs::path> files;
+    do {
+        if (std::regex_match(fileGen.get().string(), fileFilter))
+            files.push_back(fileGen.get());
+    } while (fileGen.next());
+
+    std::cout << "Found " << files.size() << " files" << std::endl;
 
     size_t i = 0;
-    size_t limit = 250;
+    size_t limit = 1800;
+    size_t todo = std::min(files.size(), limit);
 
     Complex::setEpsilon(threshold);
 
-    ThreadPool pool(MULTITHREAD ? std::thread::hardware_concurrency() : 1);
-    std::cout << "Using " << pool.size() << " threads" << std::endl;
-    std::vector<std::future<void>> futures;
+    if (MULTITHREAD) {
+        ThreadPool pool(std::thread::hardware_concurrency());
+        std::cout << "Using " << pool.size() << " threads" << std::endl;
+        std::vector<std::future<void>> futures;
 
-    while (fileGen.next() && i++ < limit) {
-        const fs::path &file = fileGen.get();
+        while (i < limit) {
+            const fs::path &file = files.at(i++);
 
-        futures.emplace_back(pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
+            futures.emplace_back(
+                    pool.enqueue([file, &runtimeOut, &compareOut, maxNAmpls, &runtimeMutex, &compareMutex] {
+                        processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
+                    }));
+        }
+
+        for (auto &future: futures) {
+            future.wait();
+        }
+    } else {
+        std::cout << "Using single thread" << std::endl;
+
+        while (i < todo) {
+            const fs::path &file = files[i++];
+            std::cout << i << "/" << todo << " ";
+            std::cout << "Processing " << file.string();
+            std::cout.flush();
+
             processFile(file, runtimeOut, compareOut, maxNAmpls, runtimeMutex, compareMutex);
-        }));
-    }
-
-    std::stringstream ss;
-    for (auto &future: futures) {
-        future.wait();
+        }
     }
 
     compareOut.close();
@@ -335,8 +391,29 @@ void benchmarkParameters(size_t maxNAmpls, double threshold) {
 }
 
 TEST_CASE("Test Circuit Performance", "[!benchmark]") {
-    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
-    double threshold = GENERATE(0.0, 1e-5);
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024), 4096);
+    double threshold = GENERATE(1e-8);
 
     benchmarkParameters(maxNAmpls, threshold);
+}
+
+TEST_CASE("graphstate", "[.]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(4096));
+    double threshold = GENERATE(1e-8);
+
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*graphstate_indep_qiskit.*"));
+}
+
+TEST_CASE("qpeexact", "[.]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    double threshold = GENERATE(1e-8);
+
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*qpeexact_indep_qiskit.*"));
+}
+
+TEST_CASE("qwalk-v-chain_indep_qiskit_75", "[.]") {
+    size_t maxNAmpls = GENERATE(static_cast<size_t>(1024));
+    double threshold = GENERATE(1e-8);
+
+    benchmarkParameters(maxNAmpls, threshold, std::regex(".*qwalk-v-chain_indep_qiskit_75.*"));
 }

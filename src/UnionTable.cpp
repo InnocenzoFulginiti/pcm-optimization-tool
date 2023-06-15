@@ -135,6 +135,20 @@ bool UnionTable::isTop(size_t index) const {
     return this->quReg[index].isTop();
 }
 
+bool UnionTable::allTop() {
+    if (this->allTopState)
+        return allTopState;
+
+    for (size_t i = 0; i < nQubits; i++) {
+        if (!quReg[i].isTop()) {
+            return false;
+        }
+    }
+
+    this->allTopState = true;
+    return true;
+}
+
 size_t UnionTable::indexInState(size_t qubit) const {
     QubitStateOrTop target = this->quReg[qubit];
 
@@ -210,10 +224,10 @@ void UnionTable::swap(size_t q1, size_t q2) {
     }
 
     //If internal indices have changed, rearrange them
-    if(s1.isQubitState()) {
+    if (s1.isQubitState()) {
         s1.getQubitState()->reorderIndex(oldS1Index, this->indexInState(q2));
     }
-    if(s2.isQubitState()) {
+    if (s2.isQubitState()) {
         s2.getQubitState()->reorderIndex(oldS2Index, this->indexInState(q1));
     }
 }
@@ -306,7 +320,7 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
 
             bool isRedundant = true;
             for (auto const &[key, value]: *groupStates[groupI]) {
-                if(!isRedundant && groupCanActivate) break;
+                if (!isRedundant && groupCanActivate) break;
 
                 bool res = true;
                 for (size_t calcI: groupIndices[groupI]) {
@@ -318,7 +332,7 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
                     }
                 }
 
-                if(!groupCanActivate && res && key[indexInState(index)]) {
+                if (!groupCanActivate && res && key[indexInState(index)]) {
                     groupCanActivate = true;
                 }
 
@@ -327,7 +341,7 @@ std::pair<ActivationState, std::vector<size_t>> UnionTable::minimizeControls(std
                 }
             }
 
-            if(!groupCanActivate) {
+            if (!groupCanActivate) {
                 return {ActivationState::NEVER, {}};
             }
 
@@ -393,10 +407,10 @@ std::vector<size_t> UnionTable::indexInState(const std::vector<size_t> &qubits) 
 }
 
 bool UnionTable::operator==(const UnionTable &other) const {
-    if(this->nQubits != other.nQubits) return false;
+    if (this->nQubits != other.nQubits) return false;
 
     for (size_t i = 0; i < this->nQubits; ++i) {
-        if(this->quReg[i] != other.quReg[i]) return false;
+        if (this->quReg[i] != other.quReg[i]) return false;
     }
 
     return true;
