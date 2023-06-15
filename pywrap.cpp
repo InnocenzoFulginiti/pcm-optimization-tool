@@ -2,7 +2,6 @@
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
-constexpr auto byref = py::return_value_policy::reference_internal;
 
 bool fileToFile(const std::string &in, const std::string &out, size_t maxAmpls, double threshold) {
     try {
@@ -19,15 +18,31 @@ bool fileToFile(const std::string &in, const std::string &out, size_t maxAmpls, 
     }
 
     return true;
+}
 
+std::string optimize(const std::string &in, size_t maxAmpls, double threshold) {
+    std::istringstream iss(in);
+    qc::QuantumComputation circuit;
+    circuit.import(iss, qc::Format::OpenQASM);
+
+    Complex::setEpsilon(threshold);
+    ConstantPropagation::propagate(circuit, maxAmpls);
+    std::stringstream oss;
+    circuit.dumpOpenQASM(oss);
+    return oss.str();
 }
 
 PYBIND11_MODULE(qcprop_py, m) {
-    m.doc() = "optional module docstring";
+    m.doc() = "QCPROP Module";
 
     m.def("fileToFile", &fileToFile,
           py::arg("path_in"),
           py::arg("path_out"),
+          py::arg("maxAmpls"),
+          py::arg("threshold"));
+
+    m.def("optimize", &optimize,
+          py::arg("circuit"),
           py::arg("maxAmpls"),
           py::arg("threshold"));
 }
