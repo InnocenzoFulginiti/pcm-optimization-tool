@@ -220,5 +220,5 @@ std::array<std::array<Complex, 4>, 4> getTwoQubitMatrix(const qc::Operation &op)
                             {0, 0, 0, 0},
                             {0, 0, 0, 0}
                     }};
-    };
+    }
 }
