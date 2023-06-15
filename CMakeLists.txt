@@ -84,6 +84,16 @@ target_include_directories(tests
         )
 
 
+add_subdirectory(extern/pybind11)
+
+pybind11_add_module("${PROJECT_NAME}_py" pywrap.cpp)
+
+target_link_libraries("${PROJECT_NAME}_py" PRIVATE ${PROJECT_NAME})
+
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${PYBIND11_INCLUDE_DIRS})
+
 if (WIN32)
     SET(EXTRA_FLAGS "-static-libgcc -static-libstdc++")
 else ()
