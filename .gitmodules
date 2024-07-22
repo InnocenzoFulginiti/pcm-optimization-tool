@@ -4,8 +4,8 @@
 	branch = master
 [submodule "extern/qfr"]
 	path = extern/qfr
-	url = git@github.com:cda-tum/qfr.git
-	branch = main
+	url = https://github.com/InnocenzoFulginiti/qfr_prob
+	branch = qfr_probabilistic
 [submodule "extern/pybind11"]
 	path = extern/pybind11
 	url = https://github.com/pybind/pybind11
