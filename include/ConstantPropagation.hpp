@@ -10,6 +10,7 @@
 #include "QuantumComputation.hpp"
 #include "UnionTable.hpp"
 #include "ActivationState.hpp"
+#include "util/ProbGatesUtil.hpp"
 
 #define MAX_AMPLITUDES 1024
 

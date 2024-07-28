@@ -27,6 +27,7 @@ ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, s
 
 void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes,
                                     const std::shared_ptr<UnionTable> &table) {
+    std::vector<ClassicalRegisterValue> classicControlBits(qc.getNqubits(), NOT_KNOWN);
     //Use qfr to flatten compound gates
     qc::CircuitOptimizer::flattenOperations(qc);
 
@@ -56,8 +57,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         }
 
         //Currently unsupported gates -> Targets set to top
-        if (op->isClassicControlledOperation()
-            || op->getType() == qc::Peres
+        if (op->getType() == qc::Peres
             || op->getType() == qc::Peresdag
             || op->getType() == qc::ATrue
             || op->getType() == qc::AFalse
@@ -68,7 +68,9 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             for (auto t: op->getTargets()) {
                 table->setTop(t);
             }
+
             newQc.emplace_back(op->clone());
+            
             continue;
         }
 
@@ -89,11 +91,73 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             auto nonUni = dynamic_cast<qc::NonUnitaryOperation *>(op);
 
             for (auto const t: nonUni->getTargets()) {
-                table->setTop(t);
-            }
+                if (table->purityTest(t)) {
 
-            newQc.emplace_back(op->clone());
+                    double _probabilityMeasureZero = (*table)[t].getQubitState()->probabilityMeasureZero(table->indexInState(t));
+                    double _probabilityMeasureOne = (*table)[t].getQubitState()->probabilityMeasureOne(table->indexInState(t));
+
+                    if (_probabilityMeasureZero != 1.0 && 
+                        _probabilityMeasureOne != 1.0) {
+                        Complex alpha_tmp((*table)[t].getQubitState()->amplitudeStateZero(table->indexInState(t)));
+                        double alpha = alpha_tmp.real();
+
+                        newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RY, std::vector<qc::fp>(1, 2.0 * acos(alpha)), op->getStartingQubit()));
+                        
+                        auto tmp = std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::X, std::vector<qc::fp>(), op->getStartingQubit())->clone();
+                        auto probabilisticOp = std::make_unique<qc::ProbabilisticOperation>(tmp, _probabilityMeasureZero);
+                        newQc.emplace_back(probabilisticOp);
+                        classicControlBits[t] = NOT_KNOWN;
+                        table->setTop(t);
+                    }
+                    else if (_probabilityMeasureZero == 1.0) {
+                        classicControlBits[t] = ZERO;
+                    }
+                    else {
+                        classicControlBits[t] = ONE;
+                    }
+                    // else if probability is 0 or 1, apply nothing and and leave the qubit state unchanged
+                }
+                else {
+                    table->setTop(t);
+                    newQc.emplace_back(op->clone());
+                }
+            }
             continue;
+        }
+
+        if (op->isClassicControlledOperation()) {
+            std::unique_ptr<qc::Operation> clonedOp(op->clone());
+
+            // Performing the dynamic cast
+            try {
+                qc::ClassicControlledOperation& ccop = dynamic_cast<qc::ClassicControlledOperation&>(*clonedOp);
+                qc::Operation* ccop_in = ccop.getOperation();
+                
+                auto control = ccop.getControlRegister().first;
+
+                switch (classicControlBits[control]) {
+                    case ZERO:
+                        // Add nothing
+                        continue;
+                        break;
+                    case ONE:
+                        // Replace current operation with the ClassicControlledOperation "internal" operation
+                        op = ccop_in;
+                        break;
+                    default: // Case NOT_KNOWN
+                        // Replace classical controlled with controlled
+                        ccop_in->getControls().insert({static_cast<unsigned int>(control)});
+                        
+                        auto new_op = std::make_unique<qc::StandardOperation>(ccop_in->getNqubits(), ccop_in->getControls(), ccop_in->getTargets(), ccop_in->getType(), std::vector<qc::fp>(), ccop_in->getStartingQubit());
+                        qc.emplace_back(new_op);
+                        continue;
+                        break;
+                }
+                
+                
+            } catch (const std::bad_cast& e) {
+                std::cerr << "Bad cast: " << e.what() << std::endl;
+            }
         }
 
         std::vector<size_t> controls{};
