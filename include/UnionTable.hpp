@@ -24,6 +24,8 @@ public:
 
     void combine(std::vector<size_t> qubits);
 
+    bool purityTest(size_t qubit);
+
     [[maybe_unused]] void print(std::ostream &os) const;
 
     QubitStateOrTop &operator[](size_t index) {

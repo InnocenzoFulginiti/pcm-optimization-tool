@@ -19,6 +19,58 @@ UnionTable::~UnionTable() {
     delete[] this->quReg;
 }
 
+bool UnionTable::purityTest(size_t qubit) {
+    if (this->quReg[qubit].isTop()) {
+        return false;
+    }
+
+    QubitState qubitState = *(this->quReg[qubit].getQubitState().get());
+
+    Complex ratio;
+    std::map<std::vector<bool>, Complex> a0;
+    std::map<std::vector<bool>, Complex> a1;
+    size_t _indexInState = this->indexInState(qubit);
+
+    for (auto tmp : qubitState) {
+        if (tmp.first[_indexInState] == 0) {
+            std::vector<bool> tmpKey = tmp.first.getBits();
+            tmpKey.erase(tmpKey.begin() + static_cast<std::ptrdiff_t>(_indexInState));
+            a0[tmpKey] = tmp.second;
+        }
+        else {
+            std::vector<bool> tmpKey = tmp.first.getBits();
+            tmpKey.erase(tmpKey.begin() + static_cast<std::ptrdiff_t>(_indexInState));
+            a1[tmpKey] = tmp.second;
+        }
+    }
+
+    if (a0.size() == 0 || a1.size() == 0) {
+        return true;
+    }
+
+    if (a0.size() != a1.size()) {
+        return false;
+    }
+
+    for (auto tmp : a0) {
+        if (a1.find(tmp.first) != a1.end()) {
+
+            Complex new_ratio = tmp.second / a1[tmp.first];
+            if (ratio != Complex() && ratio != new_ratio) {
+                return false;
+            }
+
+            ratio = new_ratio;
+            a1.erase(tmp.first);
+        }
+        else {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void UnionTable::setTop(size_t qubit) {
     if (this->quReg[qubit].isTop()) {
         return;
@@ -170,7 +222,6 @@ size_t UnionTable::indexInState(size_t qubit) const {
             }
         }
     }
-
     return inStateIndex;
 }
 
