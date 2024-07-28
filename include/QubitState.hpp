@@ -95,6 +95,30 @@ public:
      * @return Sum of all probabilities. This should always be 1
      */
     [[nodiscard]] double norm() const;
+    
+    /**
+     * @param index, index of the qubit in the QubitState
+     * @return Probability that the measurement outcome of index-th qubit is 0 
+     */
+    double probabilityMeasureZero(size_t index) const;
+
+    /**
+     * @param index, index of the qubit in the QubitState
+     * @return Probability that the measurement outcome of index-th qubit is 0 
+     */
+    double probabilityMeasureOne(size_t index) const;
+
+    /**
+     * @param index, index of the qubit in the QubitState
+     * @return index-th qubit's amplitude associated with basis state |0>
+     */
+    Complex amplitudeStateZero(size_t index) const;
+
+    /**
+     * @param index, index of the qubit in the QubitState
+     * @return index-th qubit's amplitude associated with basis state |1>
+     */
+    Complex amplitudeStateOne(size_t index) const;
 
     void normalize();
 
@@ -127,7 +151,14 @@ public:
 private:
     size_t nQubits;
     std::unordered_map<BitSet, Complex> map;
+    double probabilityMeasureX(size_t index, bool x) const;
 
+    /**
+     * @param index, index of the qubit in the QubitState
+     * @param x indicates the basis state, if x is true then the basis state is |1>, otherwise it is |0>
+     * @return index-th qubit's amplitude associated with basis state |x>
+     */
+    Complex amplitudeStateX(size_t index, bool x) const;
 };
 
 enum TOP {

@@ -35,6 +35,84 @@ std::string QubitState::to_string() const {
     return str;
 }
 
+double QubitState::probabilityMeasureZero(size_t index) const {
+    return probabilityMeasureX(index, false);
+}
+
+double QubitState::probabilityMeasureOne(size_t index) const {
+    return probabilityMeasureX(index, true);
+}
+
+double QubitState::probabilityMeasureX(size_t index, bool x) const {
+    double prob = 0.0;
+    bool isAlwaysX = true;
+
+    for (auto const &[key, val]: this->map) {
+        if (key[index] == x) {
+            prob += val.norm();
+        }
+        else {
+            isAlwaysX = false;
+        }
+    }
+    
+    if (isAlwaysX) {
+        return 1.0;
+    }
+
+    return prob;
+}
+
+Complex QubitState::amplitudeStateZero(size_t index) const {
+    return amplitudeStateX(index, false);
+}
+
+Complex QubitState::amplitudeStateOne(size_t index) const {
+    return amplitudeStateX(index, true);
+}
+
+Complex QubitState::amplitudeStateX(size_t index, bool x) const {
+    Complex amplitude(0., 0.);
+    bool isAlwaysX = true;
+    bool isAlwaysNotX = true;
+    bool alwaysSameSign = true;
+    bool previousSign;
+    bool firstIteration = true;
+
+    for (auto const &[key, val]: this->map) {
+        if (key[index] == x) {
+            isAlwaysNotX = false;
+        }
+        else {
+            isAlwaysX = false;
+        }
+
+        if (firstIteration) {
+            previousSign = val.real() > 0.;
+            firstIteration = false;
+        }
+        else {
+            if (previousSign != (val.real() > 0.)) {
+                alwaysSameSign = false;
+                previousSign = !previousSign;
+            }
+        }
+    }
+    
+    if (isAlwaysX) {
+        return Complex(1., 0.);
+    }
+    else if (isAlwaysNotX) {
+        return Complex(0., 0.);
+    }
+    else if (alwaysSameSign) {
+        return Complex(sqrt(0.5), 0.);
+    }
+    else {
+        return Complex(-sqrt(0.5), 0.);
+    }
+}
+
 double QubitState::norm() const {
     double norm = 0;
     for (auto const &[key, val]: this->map) {
@@ -335,7 +413,7 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2, const std::vector<size_
         return;
     }
 
-    //Split amplitudes into activated and deactivated
+    // Split amplitudes into activated and deactivated
     QubitState activated(this->nQubits);
     activated.clear();
     QubitState deactivated(this->nQubits);
