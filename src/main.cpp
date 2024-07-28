@@ -11,8 +11,8 @@
 using namespace std;
 
 int main() {
-    std::string FILENAME_IN = "../test/circuits/circ1.qasm";
-    std::string FILENAME_OUT = "../test/circuits/circ1_OUT.qasm";
+    std::string FILENAME_IN = "../test/circuits/circ2.qasm";
+    std::string FILENAME_OUT = "../test/circuits/circ2_OUT.qasm";
 
     qc::QuantumComputation qc(FILENAME_IN);
     qc.unifyQuantumRegisters("q");
