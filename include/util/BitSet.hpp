@@ -44,7 +44,7 @@ public:
         return bits[index];
     }
 
-    std::_Bit_reference operator[](const size_t index) {
+    std::vector<bool>::reference operator[](const size_t index) {
         if (index >= this->bits.size())
             throw std::out_of_range("Index out of range");
 
