@@ -52,6 +52,14 @@ public:
 
     void setTop(size_t qubit);
 
+    /**
+     * Resets the state of a given qubit
+     * @param qubit the qubit to reset
+     */
+    void resetState(size_t qubit);
+
+    void separate(size_t qubit);
+
     //Define methods to iterate over table
     QubitStateOrTop *begin() {
         return this->quReg;

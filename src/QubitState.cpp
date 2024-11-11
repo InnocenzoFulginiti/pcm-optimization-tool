@@ -35,6 +35,8 @@ std::string QubitState::to_string() const {
     return str;
 }
 
+
+
 double QubitState::probabilityMeasureZero(size_t index) const {
     return probabilityMeasureX(index, false);
 }
@@ -63,54 +65,100 @@ double QubitState::probabilityMeasureX(size_t index, bool x) const {
     return prob;
 }
 
-Complex QubitState::amplitudeStateZero(size_t index) const {
-    return amplitudeStateX(index, false);
-}
-
-Complex QubitState::amplitudeStateOne(size_t index) const {
-    return amplitudeStateX(index, true);
-}
-
-Complex QubitState::amplitudeStateX(size_t index, bool x) const {
-    Complex amplitude(0., 0.);
-    bool isAlwaysX = true;
-    bool isAlwaysNotX = true;
-    bool alwaysSameSign = true;
-    bool previousSign;
-    bool firstIteration = true;
-
-    for (auto const &[key, val]: this->map) {
-        if (key[index] == x) {
-            isAlwaysNotX = false;
-        }
-        else {
-            isAlwaysX = false;
-        }
-
-        if (firstIteration) {
-            previousSign = val.real() > 0.;
-            firstIteration = false;
-        }
-        else {
-            if (previousSign != (val.real() > 0.)) {
-                alwaysSameSign = false;
-                previousSign = !previousSign;
+std::pair<std::complex<double>, std::complex<double>> QubitState::amplitudes(size_t index) const {
+    std::complex<double> alpha;
+    std::complex<double> beta;
+    if (this->getNQubits() == 1) {
+        for (auto const &[key, val]: this->map) {
+            if (key[0] == false) {
+                alpha = std::complex<double>(val.real(), val.imag());
+            }
+            else {
+                beta = std::complex<double>(val.real(), val.imag());
             }
         }
-    }
-    
-    if (isAlwaysX) {
-        return Complex(1., 0.);
-    }
-    else if (isAlwaysNotX) {
-        return Complex(0., 0.);
-    }
-    else if (alwaysSameSign) {
-        return Complex(sqrt(0.5), 0.);
+
+        return std::make_pair(alpha, beta);
     }
     else {
-        return Complex(-sqrt(0.5), 0.);
+        // Density matrix representign the quantum state of the index-th qubit
+        std::complex<double> density_mat_00(0., 0.);
+        std::complex<double> density_mat_01(0., 0.);
+        std::complex<double> density_mat_10(0., 0.);
+        std::complex<double> density_mat_11(0., 0.);
+
+        // Build the density matrix
+        for (auto const &[key_1, val_1]: this->map) {
+            for (auto const  &[key_2, val_2]: this->map) {
+                std::string key_1_string = key_1.to_string();
+                std::string key_2_string = key_2.to_string();
+
+                int new_index = key_1_string.size() - index - 1;
+
+                char key_1_bit = key_1_string.at(new_index);
+                char key_2_bit = key_2_string.at(new_index);
+
+                key_1_string.erase(new_index, 1);
+                key_2_string.erase(new_index, 1);
+
+                std::complex<double> val_2_conj(val_2.real(), - val_2.imag());
+                std::complex<double> val_1_tmp(val_1.real(), val_1.imag());
+
+                if (key_1_string == key_2_string) {
+                    if (key_1_bit == '0' && key_2_bit == '0')
+                        density_mat_00 += val_1_tmp * val_2_conj;
+                    if (key_1_bit == '0' && key_2_bit == '1')
+                        density_mat_01 += val_1_tmp * val_2_conj;
+                    if (key_1_bit == '1' && key_2_bit == '0')
+                        density_mat_10 += val_1_tmp * val_2_conj;
+                    if (key_1_bit == '1' && key_2_bit == '1')
+                        density_mat_11 += val_1_tmp * val_2_conj;
+                }
+            }
+        }
+
+        Eigen::Matrix2cd density_matrix;
+        density_matrix(0, 0) = density_mat_00;
+        density_matrix(0, 1) = density_mat_01;
+        density_matrix(1, 0) = density_mat_10;
+        density_matrix(1, 1) = density_mat_11;
+
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix2cd> es(density_matrix);
+
+        Eigen::Vector2cd eigenvalues = es.eigenvalues();
+        Eigen::Matrix2cd eigenvectors = es.eigenvectors();
+        
+        int index_quantum_state;
+        
+        for (int i = 0; i < eigenvalues.size(); ++i) {
+            if (std::abs(eigenvalues[i] - 1.0) < 1e-5) {
+                index_quantum_state = i;
+                break;
+            }
+        }
+        
+        std::pair<std::complex<double>, std::complex<double>> state_vector_pair(
+                    eigenvectors(0, index_quantum_state),
+                    eigenvectors(1, index_quantum_state)
+                );
+        
+        return state_vector_pair;
     }
+}
+
+void QubitState::setQubitToZero(size_t index) {
+    std::unordered_map newMap = std::unordered_map<BitSet, Complex>();
+    size_t nq = this->getNQubits();
+
+    for (auto const &[key, val]: this->map) {
+        BitSet newKey(nq, key);
+        newKey[index] = false;
+        newMap[newKey] = val;
+    }
+
+    this->map = newMap;
+    this->removeZeroEntries();
+
 }
 
 double QubitState::norm() const {
@@ -192,6 +240,7 @@ void QubitState::reorderIndex(size_t oldI, size_t newI) {
     size_t right = oldI < newI ? oldI : newI;
 
     std::unordered_map<BitSet, Complex> newMap = std::unordered_map<BitSet, Complex>();
+
     for (auto [key, value]: this->map) {
         //Calculate new key
         BitSet leftUnchanged = key & ~BitSet(nq, true, left + 1);

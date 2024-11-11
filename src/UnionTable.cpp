@@ -241,7 +241,6 @@ void UnionTable::combine(std::vector<size_t> qubits) {
 void UnionTable::swap(size_t q1, size_t q2) {
     auto s1 = this->quReg[q1];
     auto s2 = this->quReg[q2];
-
     if (s1.isTop() && s2.isTop()) {
         return;
     }
@@ -266,6 +265,7 @@ void UnionTable::swap(size_t q1, size_t q2) {
                            this->indexInState(q2));
             return;
         }
+        
         //SWAP between two groups
         oldS1Index = this->indexInState(q1);
         oldS2Index = this->indexInState(q2);
@@ -465,4 +465,63 @@ bool UnionTable::operator==(const UnionTable &other) const {
     }
 
     return true;
+}
+
+void UnionTable::resetState(size_t qubit) {
+    if (!this->quReg[qubit].isTop() && this->purityTest(qubit))
+        this->quReg[qubit].getQubitState()->setQubitToZero(this->indexInState(qubit));
+}
+
+void UnionTable::separate(size_t qubit) {
+    if (!this->quReg[qubit].isTop() && this->purityTest(qubit)) {
+
+        // Indices of the rest of the qubits separated from the target qubit
+        std::vector<size_t> indices{};
+
+        auto target = this->quReg[qubit].getQubitState();
+        std::shared_ptr<QubitState> newQubitState = std::make_shared<QubitState>(QubitState(target->getNQubits() - 1));
+        newQubitState->clear();
+        
+        // Identify the rest of the qubits
+        for (size_t i = 0; i < this->nQubits; i++) {
+            if (i!= qubit && this->quReg[i].isQubitState() && this->quReg[i].getQubitState() == target) {
+                indices.push_back(i);
+            }
+        }
+        
+        size_t index = this->indexInState(qubit);
+
+        auto [alpha, beta] = this->quReg[qubit].getQubitState()->amplitudes(index);
+        
+        for (const auto &[key, value]: *target) {
+            std::vector<bool> new_key_tmp = key.getBits();
+            new_key_tmp.erase(new_key_tmp.begin() + index);
+            BitSet new_key(new_key_tmp.size(), new_key_tmp);
+            if ((*newQubitState)[new_key] == 0) {
+                if (key[index] == false) {
+                    Complex new_value(value / Complex(alpha.real(), alpha.imag()));
+                    (*newQubitState)[new_key] = new_value;
+                }
+                else {
+                    Complex new_value(value / Complex(beta.real(), beta.imag()));
+                    (*newQubitState)[new_key] = new_value;
+                }
+            }
+            
+        }
+
+        newQubitState->removeZeroEntries();
+
+        for (const auto &i: indices) {
+            this->quReg[i] = newQubitState;
+        }
+
+        std::shared_ptr<QubitState> newQubitStateForQubit = std::make_shared<QubitState>(QubitState(1));
+        newQubitStateForQubit->clear();
+
+        (*newQubitStateForQubit)[BitSet(1, std::vector<bool>(1, false))] = Complex(Complex(alpha.real(), alpha.imag()));
+        (*newQubitStateForQubit)[BitSet(1, std::vector<bool>(1, true))] = Complex(Complex(beta.real(), beta.imag()));
+        newQubitStateForQubit->removeZeroEntries();
+        this->quReg[qubit] = newQubitStateForQubit;
+    }
 }

@@ -17,6 +17,8 @@
 #include "util/BitSet.hpp"
 #include "../extern/qfr/include/operations/OpType.hpp"
 
+#include "../extern/eigen/Eigen/Dense"
+
 class QubitState {
 public:
     explicit QubitState(size_t _nQubits);
@@ -109,16 +111,10 @@ public:
     double probabilityMeasureOne(size_t index) const;
 
     /**
-     * @param index, index of the qubit in the QubitState
-     * @return index-th qubit's amplitude associated with basis state |0>
+     * @param index, index of the qubit we want to obtain the amplitudes in the QubitState
+     * @return two complex valuses representing the state (alpha, beta) of the qubit
      */
-    Complex amplitudeStateZero(size_t index) const;
-
-    /**
-     * @param index, index of the qubit in the QubitState
-     * @return index-th qubit's amplitude associated with basis state |1>
-     */
-    Complex amplitudeStateOne(size_t index) const;
+    std::pair<std::complex<double>, std::complex<double>>  amplitudes(size_t index) const;
 
     void normalize();
 
@@ -148,9 +144,16 @@ public:
 
     void removeZeroEntries();
 
+    /**
+     * Set to \ket{0} the state of the qubit indicated by index 
+     * @param index, the index of the qubit in the quantum state we want to reset to 0
+     */
+    void setQubitToZero(size_t index); 
+
 private:
     size_t nQubits;
     std::unordered_map<BitSet, Complex> map;
+    
     double probabilityMeasureX(size_t index, bool x) const;
 
     /**
