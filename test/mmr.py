@@ -1,5 +1,6 @@
 import numpy as np
 import argparse
+import sys
 from qiskit.circuit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Reset
 from qiskit.circuit.library.standard_gates import (
@@ -218,15 +219,19 @@ def main():
     parser.add_argument("depth", type=int)
     parser.add_argument("density", type=int)
     parser.add_argument("reset", type=bool)
-
-    args = parser.parse_args()
+    
+    try:
+        args = parser.parse_args()
+    except SystemExit as e:
+        # Customize the error message or usage here if needed
+        print("\033[33mUsage: python mmr.py <num_circuits> <num_qubits> <depth> <density> <reset>")
+        sys.exit(1)
 
     num_circuits = args.num_circuits
     num_qubits = args.num_qubits
     depth = args.depth
     density = args.density
     reset = args.reset
-
 
     max_operands = 3
     measure = True
@@ -281,7 +286,7 @@ def main():
     print(f"Num circuits in output folder: {output_num_circuits}")
     print(f"Average measurement operations (outputs): {output_measurements / output_num_circuits}")
     print("-----------------")
-    
+
     if input_measurements != 0:
         print(f"Measurement reduction: {100 - output_measurements * 100 / input_measurements}%")
         print(f"Number of measuremnts removed: {input_measurements - output_measurements}")
