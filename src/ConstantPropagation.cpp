@@ -123,6 +123,9 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RZ, std::vector<qc::fp>(1, phi), op->getStartingQubit()));
                     newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RY, std::vector<qc::fp>(1, theta), op->getStartingQubit()));
                     newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RZ, std::vector<qc::fp>(1, lambda), op->getStartingQubit()));
+
+                    // TODO: change rotation to \ket{0} and then remove the following not gate
+                    newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::X, std::vector<qc::fp>(), op->getStartingQubit()));
                 }
                 
                 classicControlBits[t] = ZERO;
