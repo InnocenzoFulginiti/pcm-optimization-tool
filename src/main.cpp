@@ -27,11 +27,11 @@ int main(int argc, char *argv[]) {
     qc.unifyQuantumRegisters("q");
 
     //Print the circuit
-    //qc.print(std::cout);
+    // qc.print(std::cout);
 
     ConstantPropagation::optimize(qc);
 
-    //qc.print(std::cout);
+    // qc.print(std::cout);
 
     std::ofstream file_out(FILENAME_OUT);
     qc.dumpOpenQASM(file_out);
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::string> lines;
 
     // Read the contents of the output file
-    if (file_out_i.is_open()) {
+    /*if (file_out_i.is_open()) {
         while (std::getline(file_out_i, line)) {
             lines.push_back(line);
         }
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     else {
         std::cerr << "Unable to open file for writing.";
         return 1;
-    }
+    }*/
 
     return 0;
 }
