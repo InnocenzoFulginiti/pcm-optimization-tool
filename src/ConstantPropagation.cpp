@@ -38,8 +38,8 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         auto op = (*it).get();
         it++;
         // TODO: remove this
-        // std::cout << table->to_string() << std::endl;
-        // std::cout << op->getName() << std::endl;
+        std::cout << table->to_string() << std::endl;
+        std::cout << op->getName() << std::endl;
 
         checkAmplitudes(table, maxAmplitudes);
 
@@ -217,7 +217,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     }
 
                     newQc.emplace_back(ccop_in->clone());
-                    size_t target = op->getTargets()[0];
+                    size_t target = ccop_in->getTargets()[0];
 
                     // Entangle Control Bits and Targets
                     table->combine(target, min);
@@ -225,12 +225,33 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     if (table->isTop(target)) {
                         continue;
                     }
-                    auto singleQubitMat = getMatrix(*ccop_in);
-                    (*table)[target].getQubitState()->applyGate(table->indexInState(target),
-                                                        table->indexInState(min),
-                                                        singleQubitMat);
+                    
+                    if (qc::isTwoQubitGate(ccop_in->getType())) {
+                        auto mat = getTwoQubitMatrix(*ccop_in);
+                        size_t target_2 = op->getTargets()[1];
+                        table->combine(target, target_2);
+
+                        checkAmplitude(table, maxAmplitudes, target);
+
+                        if (table->isTop(target)) {
+                            continue;
+                        }
+
+                        (*table)[target].getQubitState()->applyTwoQubitGate(table->indexInState(target),
+                                                            table->indexInState(target_2),
+                                                            table->indexInState(min),
+                                                            mat);
+                    }
+                    else {
+                        auto mat = getMatrix(*ccop_in);
+                        (*table)[target].getQubitState()->applyGate(table->indexInState(target),
+                                                            table->indexInState(min),
+                                                            mat);
+                    }
+                    
                     checkAmplitude(table, maxAmplitudes, target);
                 }
+                    
                 else if (classicControlBits[control] == NOT_KNOWN) {
                     std::vector<size_t> controls{};
                     for (qc::Control c: ccop_in->getControls())
