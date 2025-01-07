@@ -114,7 +114,7 @@ public:
      * @param index, index of the qubit we want to obtain the amplitudes in the QubitState
      * @return two complex valuses representing the state (alpha, beta) of the qubit
      */
-    std::pair<std::complex<double>, std::complex<double>>  amplitudes(size_t index) const;
+    std::pair<std::complex<double>, std::complex<double>> amplitudes(size_t index) const;
 
     void normalize();
 
@@ -141,6 +141,8 @@ public:
 
     static std::shared_ptr<QubitState>
     fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits);
+
+    std::vector<Complex> toStateVector(size_t nQubits);
 
     void removeZeroEntries();
 
