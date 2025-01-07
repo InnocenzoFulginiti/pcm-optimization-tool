@@ -535,3 +535,27 @@ QubitState::fromVector(const std::vector<std::pair<size_t, Complex>> &vector, si
 
     return state;
 }
+
+size_t vectorBoolToSizeT(const std::vector<bool>& vec) {
+    size_t value = 0;
+    size_t size = vec.size();
+
+    for (size_t i = 0; i < size; ++i) {
+        if (vec[i]) {
+            value |= (static_cast<size_t>(1) << i);
+        }
+    }
+    return value;
+}
+
+std::vector<Complex> QubitState::toStateVector(size_t nQubits) {
+    // Creates a vector of size 2^nQubits elements
+    std::vector<Complex> state_vector(1 << nQubits, Complex(0.0, 0.0));
+
+    // It creates the state vector
+    for (auto &[key, value]: this->map) {
+        state_vector[vectorBoolToSizeT(key.getBits())] = value;
+    }
+    
+    return state_vector;
+}
