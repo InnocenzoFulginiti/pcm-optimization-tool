@@ -548,14 +548,24 @@ size_t vectorBoolToSizeT(const std::vector<bool>& vec) {
     return value;
 }
 
-std::vector<Complex> QubitState::toStateVector(size_t nQubits) {
+std::vector<Complex> QubitState::toStateVector() {
     // Creates a vector of size 2^nQubits elements
-    std::vector<Complex> state_vector(1 << nQubits, Complex(0.0, 0.0));
+    std::vector<Complex> state_vector(1 << this->getNQubits(), Complex(0.0, 0.0));
 
     // It creates the state vector
     for (auto &[key, value]: this->map) {
         state_vector[vectorBoolToSizeT(key.getBits())] = value;
     }
-    
+
     return state_vector;
+}
+
+std::unordered_map<BitSet, Complex> QubitState::getQuantumState() {
+    std::unordered_map<BitSet, Complex> state;
+
+    for (auto &[key, value]: this->map) {
+        state[key] = value;
+    }
+
+    return state;
 }

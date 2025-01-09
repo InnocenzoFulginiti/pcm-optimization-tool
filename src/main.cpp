@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     qc.unifyQuantumRegisters("q");
 
     //Print the circuit
-    // qc.print(std::cout);
+    qc.print(std::cout);
 
     ConstantPropagation::optimize(qc);
 

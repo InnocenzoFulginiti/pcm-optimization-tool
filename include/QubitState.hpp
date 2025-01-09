@@ -97,6 +97,12 @@ public:
      * @return Sum of all probabilities. This should always be 1
      */
     [[nodiscard]] double norm() const;
+
+    /**
+     * @return Return the the quantum state of the qubit
+     */
+    std::unordered_map<BitSet, Complex> getQuantumState();
+
     
     /**
      * @param index, index of the qubit in the QubitState
@@ -142,7 +148,7 @@ public:
     static std::shared_ptr<QubitState>
     fromVector(const std::vector<std::pair<size_t, Complex>> &vector, size_t nQubits);
 
-    std::vector<Complex> toStateVector(size_t nQubits);
+    std::vector<Complex> toStateVector();
 
     void removeZeroEntries();
 

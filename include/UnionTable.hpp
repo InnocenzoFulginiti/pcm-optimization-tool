@@ -48,6 +48,12 @@ public:
 
     [[nodiscard]] std::vector<size_t> indexInState(const std::vector<size_t> &qubits) const;
 
+    /**
+     * @param state is the quantum state of which we want to get the qubit inside
+     * @return the qubits contained in the quantum state
+     */
+    [[nodiscard]] std::vector<qc::Qubit> qubitsInState(std::shared_ptr<QubitState> state) const;
+
     [[nodiscard]] bool isTop(size_t index) const;
 
     void setTop(size_t qubit);

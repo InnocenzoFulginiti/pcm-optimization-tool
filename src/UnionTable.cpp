@@ -525,3 +525,15 @@ void UnionTable::separate(size_t qubit) {
         this->quReg[qubit] = newQubitStateForQubit;
     }
 }
+
+std::vector<qc::Qubit> UnionTable::qubitsInState(std::shared_ptr<QubitState> state) const {
+    std::vector<qc::Qubit> qubits;
+
+    for (size_t i = 0; i < this->nQubits; i++) {
+        if (this->quReg[i].isQubitState() && this->quReg[i].getQubitState() == state) {
+            qubits.push_back(i);
+        }
+    }
+
+    return qubits;
+}

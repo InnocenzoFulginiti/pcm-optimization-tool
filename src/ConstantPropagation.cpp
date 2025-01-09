@@ -2,6 +2,8 @@
 // Created by Jakob on 25/01/2023.
 //
 
+#define MAX_ENT_GROUP_MEAS 4
+
 #include "../include/ConstantPropagation.hpp"
 #include "MatrixGenerator.hpp"
 #include "CircuitOptimizer.hpp"
@@ -16,6 +18,92 @@ bool ConstantPropagation::checkAmplitude(const std::shared_ptr<UnionTable> &tabl
     }
 
     return false;
+}
+
+std::string complexToString(Complex c) {
+    return std::to_string(c.real()) + 
+           (c.imag() >= 0 ? "+" : "") + 
+           std::to_string(c.imag()) + "i";
+}
+
+// Struct to hold quantum gate data
+struct GateFromFile {
+    std::string operation;
+    std::vector<int> qubits;
+    std::vector<double> parameters;
+};
+
+// Function to trim spaces and special characters from a string
+std::string trim(const std::string& str) {
+    size_t start = str.find_first_not_of(" ('");
+    size_t end = str.find_last_not_of(" )");
+    return str.substr(start, end - start);
+}
+
+// Function that reads a file and returns a vector of QuantumGate structs
+std::vector<GateFromFile> parseQuantumGatesFromFile(const std::string& filename) {
+    std::vector<GateFromFile> gateList;
+    std::ifstream file(filename);
+    
+    if (!file) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return gateList;  // Return empty vector on error
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        GateFromFile gate;
+        std::stringstream ss(line);
+        char discard;
+        
+        // Parsing operation name
+        ss >> discard;  // Discard initial '('
+        std::string op;
+        std::getline(ss, op, ',');
+        gate.operation = trim(op);
+
+        // Parsing qubits list
+        ss >> discard;  // Discard '['
+
+        int qubit;
+
+        char c;
+
+        do {
+            ss >> qubit;
+            gate.qubits.push_back(qubit);
+            
+            c = ss.peek();
+
+            if (c == ',') {
+                ss >> discard; // Consume blank space
+            }
+        } while (c != ']');
+        
+        ss >> discard;  // Discard comma
+        ss >> discard;  // Discard space after
+
+        // Parsing parameters list (FIXED for empty [])
+        ss >> discard;  // Discard '['
+        if (ss.peek() == ']') {
+            ss >> discard;  // If the list is empty, discard the closing bracket ']'
+        } else {
+            double param;
+            while (ss.peek() != ']') {
+                ss >> param;
+                gate.parameters.push_back(param);
+                if (ss.peek() == ',') ss >> discard;  // Only discard comma if present
+            }
+            ss >> discard;  // Discard closing bracket ']'
+        }
+
+        // Add parsed gate to the list
+        gateList.push_back(gate);
+    }
+
+
+    file.close();
+    return gateList;
 }
 
 void
@@ -41,7 +129,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         // TODO: remove this ****************************************************************************
         std::cout << op->getName() << std::endl;
         std::cout << (*table).to_string() << std::endl;
-        
+
         // std::cout << table->to_string() << std::endl;
         // for (auto c : op->getControls()) {
         //     std::cout << "Qubit " << c.qubit << std::endl;
@@ -208,6 +296,66 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     }
                     else {
                         classicControlBits[t] = ONE;
+                    }
+                }
+                else if ((*table)[t].getQubitState()->size() <= MAX_ENT_GROUP_MEAS) {
+                    std::vector<Complex> state_vector = (*table)[t].getQubitState()->toStateVector();
+                    qc::Targets targets = table->qubitsInState((*table)[t].getQubitState());
+
+                    std::string python_call = "python ../test/generate_rotation.py ";
+
+                    python_call += " \"[";
+                    python_call += std::to_string(targets[0]);
+                    for (size_t i = 1; i < targets.size(); i++) {
+                        python_call += ", " + std::to_string(targets[i]);
+                    }
+                    python_call += "]\"";
+                    python_call += " \"[";
+                    python_call += complexToString(state_vector[0]);
+                    for (size_t i = 1; i < state_vector.size(); i++) {
+                        python_call += ", " + complexToString(state_vector[i]);
+                    }
+                    python_call += "]\"";
+
+                    system(python_call.c_str());
+
+                    std::vector<GateFromFile> gates = parseQuantumGatesFromFile("rotation.txt");
+
+                    for (const auto& gate : gates) {
+                        if (gate.operation == "ry") {
+                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::RY, gate.parameters, 0));
+                        }
+                        if (gate.operation == "rz") {
+                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::RZ, gate.parameters, 0));
+                        }
+                        if (gate.operation == "h") {
+                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::H, gate.parameters, 0));
+                        }
+                        if (gate.operation == "cx") {
+                            qc::Qubit q(gate.qubits[0]);
+                            qc::Control c{q, qc::Control::Type::Pos};
+                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(2, c, gate.qubits[1], qc::OpType::X, gate.parameters, 0));
+                        }
+                    }
+
+                    std::unordered_map<BitSet, Complex> state = (*table)[t].getQubitState()->getQuantumState();
+                    std::vector<double> probabilities;
+                    std::vector<std::vector<bool>> basis_states;
+
+                    for (auto [key, value] : state) {
+                        probabilities.push_back(value.norm());
+                        basis_states.push_back(key.getBits());
+                    }
+                    qc::Controls controls;
+
+                    auto tmp = std::make_unique<qc::StandardOperation>(targets.size(), controls, targets, qc::OpType::X, std::vector<qc::fp>(), 0)->clone();
+                    auto probabilisticOp = std::make_unique<qc::BigProbabilisticOperation>(tmp, probabilities, basis_states);
+                    
+                    newQc.emplace_back(probabilisticOp);
+                    for (auto i : targets) {
+                        classicControlBits[i] = NOT_KNOWN;
+                        table->separate(i);
+                        table->setTop(i);
                     }
                 }
                 else {
