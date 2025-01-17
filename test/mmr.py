@@ -159,7 +159,8 @@ def my_random_circuit(
                 operands = [remaining_qubits.pop()]
                 angles = []
                 register_operands = [qr[i] for i in operands]
-                op = operation(*angles)
+                operation = Reset
+                op = operation()
             else:
                 max_possible_operands = min(len(remaining_qubits), max_operands)
                 num_operands = rng.choice(range(max_possible_operands)) + 1
@@ -207,7 +208,7 @@ def generate_circuits(num_qubits, depth, measurement_density, reset_density, num
     # post_pass_manager.append(ResetAfterMeasureSimplification())
 
     for i in range(num_circuits):
-        qc = my_random_circuit(num_qubits=num_qubits, depth=depth, max_operands=max_operands, measure=measure, reset=reset, seed=seed, measurements_density=measurement_density, reset_density=reset_density)
+        qc = my_random_circuit(num_qubits=num_qubits, depth=depth, max_operands=max_operands, measure=measure, reset=reset, seed=seed+i, measurements_density=measurement_density, reset_density=reset_density)
         if pass_manager != None:
             qc = pass_manager.run(qc)
 
@@ -254,11 +255,13 @@ def main():
     parser.add_argument("meas_density", type=int)
     parser.add_argument("reset", type=lambda x: bool(strtobool(x)))
     parser.add_argument("res_density", type=int)
+    parser.add_argument("max_ent_group_size", type=int)
+    parser.add_argument("gen_circ", type=lambda x: bool(strtobool(x)))
     try:
         args = parser.parse_args()
     except SystemExit as e:
         # Customize the error message or usage here if needed
-        print("\033[33mUsage: python mmr.py <num_circuits> <num_qubits> <depth> <density> <reset>")
+        print("\033[33mUsage: python mmr.py <num_circuits> <num_qubits> <depth> <meas_density> <reset> <res_density> <max_ent_group_size> <generate_circuits")
         sys.exit(1)
 
     num_circuits = args.num_circuits
@@ -267,10 +270,12 @@ def main():
     meas_density = args.meas_density
     reset = args.reset
     res_density = args.res_density
+    max_ent_group_size = args.max_ent_group_size
+    gen_circ = args.gen_circ
 
     max_operands = 3
     measure = False
-    seed = None
+    seed = 5
 
     # Pass manager initialization
     pass_manager = None
@@ -290,27 +295,27 @@ def main():
     cpp_program = "../build/qcprop_main"
     
     non_opt_folder = f"./non_opt_circuits_n_{num_qubits}_dp_{depth}_dn_{meas_density}_res_{reset}_res_dn_{res_density}"
-    mmr_opt_folder = f"./mmr_opt_circuits_n_{num_qubits}_dp_{depth}_dn_{meas_density}_res_{reset}_res_dn_{res_density}"
+    mmr_opt_folder = f"./mmr_opt_circuits_n_{num_qubits}_dp_{depth}_dn_{meas_density}_res_{reset}_res_dn_{res_density}_max_ent_{max_ent_group_size}"
+    folder_qiskit_opt = f"./qiskit_opt_circuits_n_{num_qubits}_dp_{depth}_dn_{meas_density}_res_{reset}_res_dn_{res_density}"
 
     os.makedirs(non_opt_folder, exist_ok=True)
     os.makedirs(mmr_opt_folder, exist_ok=True)
 
-    [generated_circuits_non_opt, generated_circuits_qiskit_opt] = generate_circuits(num_qubits=num_qubits, depth=depth, num_circuits=num_circuits, 
-        meas_density=meas_density, res_density=res_density, reset=reset, max_operands=max_operands, seed=seed, measure=measure, pass_manager=pass_manager)
+    if gen_circ:
+        [generated_circuits_non_opt, generated_circuits_qiskit_opt] = generate_circuits(num_qubits=num_qubits, depth=depth, num_circuits=num_circuits, 
+            measurement_density=meas_density, reset_density=res_density, reset=reset, max_operands=max_operands, seed=seed, measure=measure, pass_manager=pass_manager)
 
-    folder_qiskit_opt = ""
-    if generate_qiskit_opt:
-        folder_qiskit_opt = f"./qiskit_opt_circuits_n_{num_qubits}_dp_{depth}_dn_{meas_density}_res_{reset}_res_dn_{res_density}"
-        os.makedirs(folder_qiskit_opt, exist_ok=True)
-        for i, circuit in enumerate(generated_circuits_qiskit_opt):
-            filename = os.path.join(folder_qiskit_opt, f"qiskit_opt_{i}.qasm")
+        if generate_qiskit_opt:
+            os.makedirs(folder_qiskit_opt, exist_ok=True)
+            for i, circuit in enumerate(generated_circuits_qiskit_opt):
+                filename = os.path.join(folder_qiskit_opt, f"qiskit_opt_{i}.qasm")
+                with open(filename, 'w') as file:
+                    file.write(circuit + "\n")
+
+        for i, circuit in enumerate(generated_circuits_non_opt):
+            filename = os.path.join(non_opt_folder, f"non_opt_{i}.qasm")
             with open(filename, 'w') as file:
                 file.write(circuit + "\n")
-
-    for i, circuit in enumerate(generated_circuits_non_opt):
-        filename = os.path.join(non_opt_folder, f"non_opt_{i}.qasm")
-        with open(filename, 'w') as file:
-            file.write(circuit + "\n")
 
     for input_filename in os.listdir(non_opt_folder):
         input_file_path = os.path.join(non_opt_folder, input_filename)
@@ -328,7 +333,7 @@ def main():
         
         # Run the C++ program with the input and output paths as arguments
         try:
-            subprocess.run([cpp_program, input_file_path, output_file_path], check=True)
+            subprocess.run([cpp_program, input_file_path, output_file_path, str(max_ent_group_size)], check=True)
             print(f"\033[92mCorrectly processed {input_filename} -> {output_filename}\033[0m")
         except subprocess.CalledProcessError as e:
             print(f"\033[91mError processing {input_filename}: {e}\033[0m")
@@ -343,8 +348,8 @@ def main():
     if generate_qiskit_opt:
         [qiskit_opt_measurements, _, qiskit_opt_resets, qiskit_opt_num_circuits] = count_measure_reset_operations(folder_qiskit_opt)
     
-    report_file_name = f"report_n_{num_qubits}_dp_{depth}_dn_{meas_density}_res_{reset}_res_dn_{res_density}.txt"
-    report_file_path = os.path.join(non_opt_folder, report_file_name)
+    report_file_name = f"report_n_{num_qubits}_dp_{depth}_dn_{meas_density}_res_{reset}_res_dn_{res_density}_max_ent_{max_ent_group_size}.txt"
+    report_file_path = os.path.join(mmr_opt_folder, report_file_name)
 
     with open(report_file_path, "w") as file:
         file.write(f"Num circuits in non-opt folder: {non_opt_num_circuits}\n")
