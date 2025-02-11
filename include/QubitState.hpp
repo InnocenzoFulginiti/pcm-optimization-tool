@@ -156,7 +156,7 @@ public:
      * Set to \ket{0} the state of the qubit indicated by index 
      * @param index, the index of the qubit in the quantum state we want to reset to 0
      */
-    void setQubitToZero(size_t index); 
+    // void setQubitToZero(size_t index); 
 
 private:
     size_t nQubits;

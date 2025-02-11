@@ -86,7 +86,6 @@ public:
 private:
     size_t nQubits;
     QubitStateOrTop *quReg;
-    bool allTopState = false;
 
     bool isAlwaysOne(size_t q);
 

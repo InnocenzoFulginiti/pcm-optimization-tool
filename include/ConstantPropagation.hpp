@@ -13,6 +13,7 @@
 #include "util/ProbGatesUtil.hpp"
 
 #define MAX_AMPLITUDES 1024
+#define MAX_ENT_GROUP_SIZE 5
 
 class ConstantPropagation {
 public:
@@ -20,11 +21,13 @@ public:
 
     static void optimize(qc::QuantumComputation &qc, size_t maxAmplitudes);
 
+    static void optimize(qc::QuantumComputation &qc, size_t maxAmplitudes, size_t max_ent_group_size);
+
     static std::shared_ptr<UnionTable>
-    propagate(qc::QuantumComputation &qc, size_t maxAmplitudes);
+    propagate(qc::QuantumComputation &qc, size_t maxAmplitudes, size_t max_ent_group_size);
 
     static void
-    propagate(qc::QuantumComputation &qc, size_t maxAmplitudes, const std::shared_ptr<UnionTable> &table);
+    propagate(qc::QuantumComputation &qc, size_t maxAmplitudes, size_t max_ent_group_size, const std::shared_ptr<UnionTable> &table);
 
 private:
     static bool checkAmplitude(const std::shared_ptr<UnionTable> &table, size_t maxAmplitudes, size_t index);
