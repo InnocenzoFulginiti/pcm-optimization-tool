@@ -2,8 +2,6 @@
 // Created by Jakob on 25/01/2023.
 //
 
-#define MAX_ENT_GROUP_MEAS 4
-
 #include "../include/ConstantPropagation.hpp"
 #include "MatrixGenerator.hpp"
 #include "CircuitOptimizer.hpp"
@@ -113,7 +111,75 @@ ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, s
     }
 }
 
-void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes,
+// Function that calls a Python script to synthesize the circuit that rotates the state from |0> to the current state of the qubit t
+// in the table. If the flag inverse is true, then the returned circuit rotates the state from the current state of the qubit t into |0>
+size_t synthesize_rotation(const std::shared_ptr<UnionTable> &table, qc::QuantumComputation &newQc, qc::Qubit t, bool inverse, double &execution_time) {
+    size_t added_op = 0;
+
+    auto state_vector = (*table)[t].getQubitState()->toStateVector();
+    qc::Targets targets = table->qubitsInState((*table)[t].getQubitState());
+    std::string python_call = "python ../generate_rotation.py ";
+
+    python_call += " \"[";
+    python_call += std::to_string(targets[0]);
+    for (size_t i = 1; i < targets.size(); i++) {
+        python_call += ", " + std::to_string(targets[i]);
+    }
+    python_call += "]\"";
+    python_call += " \"[";
+    python_call += complexToString(state_vector[0]);
+    for (size_t i = 1; i < state_vector.size(); i++) {
+        python_call += ", " + complexToString(state_vector[i]);
+    }
+    
+    if (inverse) {
+        python_call += "]\" True";
+    }
+    else {
+        python_call += "]\" False";
+    }
+
+    system(python_call.c_str());
+
+    std::vector<GateFromFile> gates = parseQuantumGatesFromFile("rotation.txt");
+
+    for (const auto& gate : gates) {
+        if (gate.operation == "ry") {
+            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::RY, gate.parameters, 0));
+        }
+        if (gate.operation == "rz") {
+            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::RZ, gate.parameters, 0));
+        }
+        if (gate.operation == "h") {
+            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::H, gate.parameters, 0));
+        }
+        if (gate.operation == "cx") {
+            qc::Qubit q(gate.qubits[0]);
+            qc::Control c{q, qc::Control::Type::Pos};
+            newQc.emplace_back(std::make_unique<qc::StandardOperation>(2, c, gate.qubits[1], qc::OpType::X, gate.parameters, 0));
+        }
+
+        added_op++;
+    }
+
+    // Get the execution time
+    std::ifstream inputFile("execution_time.txt");
+    if (!inputFile) {
+        std::cerr << "Error opening file!" << std::endl;
+        return 1;  // Exit if file not found
+    }
+
+    double execution_time_tmp;
+    inputFile >> execution_time_tmp;  // Read the floating-point number from the file
+
+    execution_time += execution_time_tmp;
+
+    inputFile.close();  // Close the file
+
+    return added_op;
+}
+
+void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes, size_t max_ent_group_size,
                                     const std::shared_ptr<UnionTable> &table) {                               
     std::vector<ClassicalRegisterValue> classicControlBits(qc.getNqubits(), NOT_KNOWN);
     // Use qfr to flatten compound gates
@@ -122,44 +188,16 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     qc::QuantumComputation newQc(qc.getNqubits());
 
     auto it = qc.begin();
+    size_t added_op = 0;
+    double execution_time = 0.0;
+
     while (it != qc.end()) {
         auto op = (*it).get();
         it++;
 
-        // TODO: remove this ****************************************************************************
-        std::cout << op->getName() << std::endl;
-        std::cout << (*table).to_string() << std::endl;
-
-        // std::cout << table->to_string() << std::endl;
-        // for (auto c : op->getControls()) {
-        //     std::cout << "Qubit " << c.qubit << std::endl;
-        //     if (c.type == qc::Control::Type::Pos) {
-        //         std::cout << "POSITIVE\n";
-        //     }
-        //     else if (c.type == qc::Control::Type::Neg) {
-        //         std::cout << "NEGATIVE\n";
-        //     }
-            
-        // }
-        
-        // for (auto t : op->getTargets()) {
-        //     std::cout << t << std::endl;
-        // }
-        
-        // auto qubit_state_or_top = (*table)[0];
-        // if (qubit_state_or_top.isQubitState()) {
-        //     auto qubit_state = qubit_state_or_top.getQubitState();
-        //     auto state_vector = qubit_state->toStateVector(qubit_state->getNQubits());
-        //     for (size_t i = 0; i < state_vector.size(); i++) {
-        //         std::cout << state_vector[i] << " ";
-        //     }
-        //     std::cout << std::endl;
-        // }
-        // ************************************************************************************************
-
         checkAmplitudes(table, maxAmplitudes);
 
-        if (table->allTop()) {
+        if (table->allTop() && op->getType() != qc::Reset) {
             newQc.emplace_back(op->clone());
             continue;
         }
@@ -208,39 +246,46 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         if (op->getType() == qc::Reset) {
             for (auto t: op->getTargets()) {
                 if (!table->purityTest(t)) {
-                    table->setTop(t);
-                    (*table)[t] = std::make_shared<QubitState>(1);
-                    newQc.emplace_back(op->clone());
-                }
-                else {
-                    table->resetState(t);
+                    if ((*table)[t].isQubitState() && (*table)[t].getQubitState()->getNQubits() <= max_ent_group_size) {
+                        // Perform rotation from the current state to |0>
+                        added_op += synthesize_rotation(table, newQc, t, true, execution_time);
 
-                    // Obtain alpha and beta values from the state of the qubit table->indexInState(t)
-                    auto [alpha, beta] = (*table)[t].getQubitState()->amplitudes(table->indexInState(t));
+                        // Reset t-th qubit
+                        table->resetState(t);
 
-                    std::complex<double> alpha_conj = std::conj(alpha);
-                    std::complex<double> beta_conj = std::conj(beta);
-
-                    std::complex<double> x = std::complex<double>(1) / sqrt((alpha_conj * (-alpha) - beta_conj * beta));
-                    double gamma = - atan2(x.imag(), x.real());
-                    alpha *= std::exp(std::complex<double>(0, gamma));
-                    beta *= std::exp(std::complex<double>(0, gamma));
-                    alpha_conj *= std::exp(std::complex<double>(0, gamma));
-                    beta_conj *= std::exp(std::complex<double>(0, gamma));
-
-                    double theta = 2 * atan2(std::arg(beta_conj), std::arg(alpha_conj));
-                    double phi = atan2(-alpha.imag(), -alpha.real()) + atan2(beta_conj.imag(), beta_conj.real());
-                    double lambda = atan2(-alpha.imag(), -alpha.real()) - atan2(beta_conj.imag(), beta_conj.real());
+                        // Add gates to perform rotation from state |0> to the state before reset
+                        added_op += synthesize_rotation(table, newQc, t, false, execution_time);
                     
-                    newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RZ, std::vector<qc::fp>(1, phi), op->getStartingQubit()));
-                    newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RY, std::vector<qc::fp>(1, theta), op->getStartingQubit()));
-                    newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RZ, std::vector<qc::fp>(1, lambda), op->getStartingQubit()));
-
+                        for (auto q : table->qubitsInState((*table)[t].getQubitState())) {
+                            table->separate(q);
+                            classicControlBits[q] = NOT_KNOWN;
+                        }
+                    }
+                    else {
+                        if ((*table)[t].isQubitState()) {
+                            for (auto q : table->qubitsInState((*table)[t].getQubitState())) {
+                                classicControlBits[q] = NOT_KNOWN;
+                            }
+                            table->setTop(t);
+                        }
+                        newQc.emplace_back(op->clone());
+                    }
                 }
-                
+                else if ((*table)[t].isQubitState()) {
+                    double _probabilityMeasureZero = (*table)[t].getQubitState()->probabilityMeasureZero(table->indexInState(t));
+                    double _probabilityMeasureOne = (*table)[t].getQubitState()->probabilityMeasureOne(table->indexInState(t));
+
+                    if (_probabilityMeasureOne == 1.0) {
+                        newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::X, std::vector<qc::fp>(0), op->getStartingQubit()));
+                    }
+                    else if (_probabilityMeasureZero != 1.0 && _probabilityMeasureOne != 1.0) {
+                        added_op += synthesize_rotation(table, newQc, t, true, execution_time);
+                    }
+                }
+
+                table->resetState(t);
                 classicControlBits[t] = ZERO;
             }
-            
             continue;
         }
 
@@ -256,36 +301,20 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 }
 
                 if (table->purityTest(t)) {
-
                     double _probabilityMeasureZero = (*table)[t].getQubitState()->probabilityMeasureZero(table->indexInState(t));
                     double _probabilityMeasureOne = (*table)[t].getQubitState()->probabilityMeasureOne(table->indexInState(t));
 
-                    if (_probabilityMeasureZero != 1.0 && 
-                        _probabilityMeasureOne != 1.0) {
-                        
-                        auto [alpha, beta] = (*table)[t].getQubitState()->amplitudes(table->indexInState(t));
-                        std::complex<double> alpha_conj = std::conj(alpha);
-                        std::complex<double> beta_conj = std::conj(beta);
+                    if (_probabilityMeasureZero != 1.0 && _probabilityMeasureOne != 1.0) {
+                        // Synthesize the circuit to rotate the state to |0>
+                        added_op += synthesize_rotation(table, newQc, t, true, execution_time);
 
-                        std::complex<double> x = std::complex<double>(1) / sqrt((alpha_conj * (-alpha) - beta_conj * beta));
-                        double gamma = - atan2(x.imag(), x.real());
-                        alpha *= std::exp(std::complex<double>(0, gamma));
-                        beta *= std::exp(std::complex<double>(0, gamma));
-                        alpha_conj *= std::exp(std::complex<double>(0, gamma));
-                        beta_conj *= std::exp(std::complex<double>(0, gamma));
-
-                        double theta = 2 * atan2(std::arg(beta_conj), std::arg(alpha_conj));
-                        double phi = atan2(-alpha.imag(), -alpha.real()) + atan2(beta_conj.imag(), beta_conj.real());
-                        double lambda = atan2(-alpha.imag(), -alpha.real()) - atan2(beta_conj.imag(), beta_conj.real());
-                        
-                        newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RZ, std::vector<qc::fp>(1, phi), op->getStartingQubit()));
-                        newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RY, std::vector<qc::fp>(1, theta), op->getStartingQubit()));
-                        newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::RZ, std::vector<qc::fp>(1, lambda), op->getStartingQubit()));
-
+                        // Add probabilistc X gate
                         auto tmp = std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::X, std::vector<qc::fp>(), op->getStartingQubit())->clone();
                         auto probabilisticOp = std::make_unique<qc::ProbabilisticOperation>(tmp, _probabilityMeasureOne);
                         
                         newQc.emplace_back(probabilisticOp);
+                        added_op++;
+
                         classicControlBits[t] = NOT_KNOWN;
                         table->separate(t);
                         table->setTop(t);
@@ -298,46 +327,13 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                         classicControlBits[t] = ONE;
                     }
                 }
-                else if ((*table)[t].getQubitState()->size() <= MAX_ENT_GROUP_MEAS) {
-                    std::vector<Complex> state_vector = (*table)[t].getQubitState()->toStateVector();
+                else if ((*table)[t].isQubitState() && (*table)[t].getQubitState()->getNQubits() <= max_ent_group_size) {
+                    // Synthesize the circuit to rotate the state to |0>
+                    added_op += synthesize_rotation(table, newQc, t, true, execution_time);
+
                     qc::Targets targets = table->qubitsInState((*table)[t].getQubitState());
 
-                    std::string python_call = "python ../test/generate_rotation.py ";
-
-                    python_call += " \"[";
-                    python_call += std::to_string(targets[0]);
-                    for (size_t i = 1; i < targets.size(); i++) {
-                        python_call += ", " + std::to_string(targets[i]);
-                    }
-                    python_call += "]\"";
-                    python_call += " \"[";
-                    python_call += complexToString(state_vector[0]);
-                    for (size_t i = 1; i < state_vector.size(); i++) {
-                        python_call += ", " + complexToString(state_vector[i]);
-                    }
-                    python_call += "]\"";
-
-                    system(python_call.c_str());
-
-                    std::vector<GateFromFile> gates = parseQuantumGatesFromFile("rotation.txt");
-
-                    for (const auto& gate : gates) {
-                        if (gate.operation == "ry") {
-                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::RY, gate.parameters, 0));
-                        }
-                        if (gate.operation == "rz") {
-                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::RZ, gate.parameters, 0));
-                        }
-                        if (gate.operation == "h") {
-                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(1, gate.qubits[0], qc::OpType::H, gate.parameters, 0));
-                        }
-                        if (gate.operation == "cx") {
-                            qc::Qubit q(gate.qubits[0]);
-                            qc::Control c{q, qc::Control::Type::Pos};
-                            newQc.emplace_back(std::make_unique<qc::StandardOperation>(2, c, gate.qubits[1], qc::OpType::X, gate.parameters, 0));
-                        }
-                    }
-
+                    // Construct and append the big probabilistic gate
                     std::unordered_map<BitSet, Complex> state = (*table)[t].getQubitState()->getQuantumState();
                     std::vector<double> probabilities;
                     std::vector<std::vector<bool>> basis_states;
@@ -350,8 +346,10 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
 
                     auto tmp = std::make_unique<qc::StandardOperation>(targets.size(), controls, targets, qc::OpType::X, std::vector<qc::fp>(), 0)->clone();
                     auto probabilisticOp = std::make_unique<qc::BigProbabilisticOperation>(tmp, probabilities, basis_states);
-                    
                     newQc.emplace_back(probabilisticOp);
+
+                    added_op += targets.size();
+
                     for (auto i : targets) {
                         classicControlBits[i] = NOT_KNOWN;
                         table->separate(i);
@@ -359,9 +357,11 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     }
                 }
                 else {
-                    table->setTop(t);
+                    if ((*table)[t].isQubitState()) {
+                        table->setTop(t);
+                        classicControlBits[t] = NOT_KNOWN;
+                    }
                     newQc.emplace_back(op->clone());
-                    classicControlBits[t] = NOT_KNOWN;
                 }
             }
             continue;
@@ -530,7 +530,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     for (auto t: op->getTargets()) {
                         table->separate(t);
                     }
-
                     for (auto c : op->getControls()) {
                         table->separate(c.qubit);
                     }
@@ -605,18 +604,25 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     for (auto &op: newQc) {
         qc.emplace_back(op->clone());
     }
-}
 
-std::shared_ptr<UnionTable> ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes) {
+    std::cout << "Added operations: " << added_op << std::endl;
+    std::cout << "Execution time: " << execution_time << std::endl;
+ }
+
+std::shared_ptr<UnionTable> ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes,  size_t max_ent_group_size) {
     auto table = std::make_shared<UnionTable>(qc.getNqubits());
-    propagate(qc, maxAmplitudes, table);
+    propagate(qc, maxAmplitudes, max_ent_group_size, table);
     return table;
 }
 
 void ConstantPropagation::optimize(qc::QuantumComputation &qc) {
-    optimize(qc, MAX_AMPLITUDES);
+    optimize(qc, MAX_AMPLITUDES, MAX_ENT_GROUP_SIZE);
 }
 
 void ConstantPropagation::optimize(qc::QuantumComputation &qc, size_t maxAmplitudes) {
-    propagate(qc, maxAmplitudes);
+    propagate(qc, maxAmplitudes, MAX_ENT_GROUP_SIZE);
+}
+
+void ConstantPropagation::optimize(qc::QuantumComputation &qc, size_t maxAmplitudes, size_t max_ent_group_size) {
+    propagate(qc, maxAmplitudes, max_ent_group_size);
 }
