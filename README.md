@@ -1,4 +1,4 @@
-# Master Thesis Jakob WT22
+# Optimization Framework for Reducing Mid-circuit Measurements and Resets
 
 
 
