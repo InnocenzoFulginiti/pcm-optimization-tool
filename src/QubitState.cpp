@@ -146,21 +146,6 @@ std::pair<std::complex<double>, std::complex<double>> QubitState::amplitudes(siz
     }
 }
 
-void QubitState::setQubitToZero(size_t index) {
-    std::unordered_map newMap = std::unordered_map<BitSet, Complex>();
-    size_t nq = this->getNQubits();
-
-    for (auto const &[key, val]: this->map) {
-        BitSet newKey(nq, key);
-        newKey[index] = false;
-        newMap[newKey] = val;
-    }
-
-    this->map = newMap;
-    this->removeZeroEntries();
-
-}
-
 double QubitState::norm() const {
     double norm = 0;
     for (auto const &[key, val]: this->map) {

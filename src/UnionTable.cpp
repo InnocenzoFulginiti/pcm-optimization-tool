@@ -188,16 +188,12 @@ bool UnionTable::isTop(size_t index) const {
 }
 
 bool UnionTable::allTop() {
-    if (this->allTopState)
-        return allTopState;
-
     for (size_t i = 0; i < nQubits; i++) {
         if (!quReg[i].isTop()) {
             return false;
         }
     }
 
-    this->allTopState = true;
     return true;
 }
 
@@ -468,8 +464,63 @@ bool UnionTable::operator==(const UnionTable &other) const {
 }
 
 void UnionTable::resetState(size_t qubit) {
-    if (!this->quReg[qubit].isTop() && this->purityTest(qubit))
-        this->quReg[qubit].getQubitState()->setQubitToZero(this->indexInState(qubit));
+    if (this->quReg[qubit].isTop() || this->purityTest(qubit)) {
+        this->quReg[qubit] = std::make_shared<QubitState>(1);
+    } else {
+        auto target = this->quReg[qubit].getQubitState();
+        std::shared_ptr<QubitState> newQubitState = std::make_shared<QubitState>(QubitState(target->getNQubits()));
+        newQubitState->clear();
+        size_t index = this->indexInState(qubit);
+
+        for (const auto &[key, value]: *target) {
+            if (key[index] == false) {
+                (*newQubitState)[key] = value;
+            }
+        }
+
+        newQubitState->removeZeroEntries();
+        newQubitState->normalize();
+        
+        for (size_t i = 0; i < this->nQubits; i++) {
+            if (this->quReg[i].isQubitState() && this->quReg[i].getQubitState() == target) {
+                this->quReg[i] = newQubitState;
+            }
+        }
+
+        // // Indices of the rest of the qubits separated from the target qubit
+        // std::vector<size_t> indices{};
+
+        // auto target = this->quReg[qubit].getQubitState();
+        // std::shared_ptr<QubitState> newQubitState = std::make_shared<QubitState>(QubitState(target->getNQubits()));
+        // newQubitState->clear();
+
+        // // Identify the rest of the qubits
+        // for (size_t i = 0; i < this->nQubits; i++) {
+        //     if (i!= qubit && this->quReg[i].isQubitState() && this->quReg[i].getQubitState() == target) {
+        //         indices.push_back(i);
+        //     }
+        // }
+        
+        // size_t index = this->indexInState(qubit);
+
+        // for (const auto &[key, value]: *target) {
+        //     std::vector<bool> new_key_tmp = key.getBits();
+        //     new_key_tmp.erase(new_key_tmp.begin() + index);
+        //     BitSet new_key(new_key_tmp.size(), new_key_tmp);
+        //     if ((*newQubitState)[new_key] == 0) {
+        //         if (key[index] == false) {
+        //             (*newQubitState)[new_key] = value;
+        //         }
+        //     }
+        // }
+        // newQubitState->removeZeroEntries();
+        // newQubitState->normalize();
+        // for (const auto &i: indices) {
+        //     this->quReg[i] = newQubitState;
+        // }
+
+        // this->quReg[qubit] = std::make_shared<QubitState>(1);
+    }
 }
 
 void UnionTable::separate(size_t qubit) {
@@ -507,7 +558,6 @@ void UnionTable::separate(size_t qubit) {
                     (*newQubitState)[new_key] = new_value;
                 }
             }
-            
         }
 
         newQubitState->removeZeroEntries();
