@@ -25,7 +25,7 @@ void testIntermediateResults(qc::QuantumComputation &qc,
             gateIndex++;
         }
 
-        ConstantPropagation::propagate(qcSection, maxAmplitudes, currentTable);
+        ConstantPropagation::propagate(qcSection, maxAmplitudes, MAX_ENT_GROUP_SIZE, currentTable);
 
         std::vector<size_t> controls;
         for (auto c: lastGateIter->get()->getControls()) {
@@ -57,7 +57,7 @@ TEST_CASE("Constant Propagation on small Files") {
 
     qc::QuantumComputation qc(p.string());
     INFO("Number of Gates: " + std::to_string(qc.getNops()));
-    CHECK_NOTHROW(ConstantPropagation::propagate(qc, maxAmplitude));
+    CHECK_NOTHROW(ConstantPropagation::propagate(qc, maxAmplitude, MAX_ENT_GROUP_SIZE));
 }
 
 TEST_CASE("Try SWAP") {
@@ -66,7 +66,7 @@ TEST_CASE("Try SWAP") {
     qc.swap(0, 1);
 
     INFO("Circuit: h[0]; swap[0,1]");
-    auto table = ConstantPropagation::propagate(qc, 3);
+    auto table = ConstantPropagation::propagate(qc, 3, MAX_ENT_GROUP_SIZE);
 
     INFO("Table: " + table->to_string());
     REQUIRE((*table)[0].isQubitState());
@@ -86,7 +86,7 @@ TEST_CASE("Try File with Reset") {
     auto fileWithReset = "../test/circuits/QASMBench/small/ipea_n2/ipea_n2.qasm";
     qc::QuantumComputation qc(fileWithReset);
 
-    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3));
+    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 3, MAX_ENT_GROUP_SIZE));
 }
 
 TEST_CASE("Check Intermediate Results adder_n4") {
@@ -163,7 +163,7 @@ TEST_CASE("Check Intermediate Results error_correctiond3_n5") {
 TEST_CASE("Try file with Classic Controlled gates") {
     auto classicControls = "../test/circuits/QASMBench/small/shor_n5/shor_n5.qasm";
     qc::QuantumComputation qc(classicControls);
-    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 1024));
+    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 1024, MAX_ENT_GROUP_SIZE));
 }
 
 TEST_CASE("Try specific file") {
@@ -180,7 +180,7 @@ TEST_CASE("Try specific file") {
     qc::CircuitOptimizer::flattenOperations(qc);
 
     Complex::setEpsilon(1e-8);
-    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 1024));
+    CHECK_NOTHROW(ConstantPropagation::propagate(qc, 1024, MAX_ENT_GROUP_SIZE));
 }
 
 TEST_CASE("Test findQASM Files", "[!mayfail]") {

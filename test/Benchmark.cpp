@@ -107,7 +107,7 @@ void runBenchmark(qc::QuantumComputation &qc, size_t maxNAmpls, std::ostream &ou
     out << ";" << dur << ";" << qc.getNops();
 
     start = c::steady_clock::now();
-    auto ut = ConstantPropagation::propagate(qc, maxNAmpls);
+    auto ut = ConstantPropagation::propagate(qc, maxNAmpls, MAX_ENT_GROUP_SIZE);
     end = c::steady_clock::now();
     dur = c::duration_cast<c::microseconds>(end - start).count();
 
