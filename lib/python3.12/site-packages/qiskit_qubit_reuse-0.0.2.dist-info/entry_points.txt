@@ -1,0 +1,4 @@
+[qiskit.transpiler.init]
+qubit_reuse = qiskit_qubit_reuse.plugin:QubitReusePluginDefault
+qubit_reuse_dual = qiskit_qubit_reuse.plugin:QubitReusePluginDual
+qubit_reuse_normal = qiskit_qubit_reuse.plugin:QubitReusePluginNormal
