@@ -113,8 +113,7 @@ ConstantPropagation::checkAmplitudes(const std::shared_ptr<UnionTable> &table, s
 
 // Function that calls a Python script to synthesize the circuit that rotates the state from |0> to the current state of the qubit t
 // in the table. If the flag inverse is true, then the returned circuit rotates the state from the current state of the qubit t into |0>
-size_t synthesize_rotation(const std::shared_ptr<UnionTable> &table, qc::QuantumComputation &newQc, qc::Qubit t, bool inverse, double &execution_time) {
-    size_t added_op = 0;
+void synthesize_rotation(const std::shared_ptr<UnionTable> &table, qc::QuantumComputation &newQc, qc::Qubit t, bool inverse) {
 
     auto state_vector = (*table)[t].getQubitState()->toStateVector();
     qc::Targets targets = table->qubitsInState((*table)[t].getQubitState());
@@ -158,25 +157,7 @@ size_t synthesize_rotation(const std::shared_ptr<UnionTable> &table, qc::Quantum
             qc::Control c{q, qc::Control::Type::Pos};
             newQc.emplace_back(std::make_unique<qc::StandardOperation>(2, c, gate.qubits[1], qc::OpType::X, gate.parameters, 0));
         }
-
-        added_op++;
     }
-
-    // Get the execution time
-    std::ifstream inputFile("execution_time.txt");
-    if (!inputFile) {
-        std::cerr << "Error opening file!" << std::endl;
-        return 1;  // Exit if file not found
-    }
-
-    double execution_time_tmp;
-    inputFile >> execution_time_tmp;  // Read the floating-point number from the file
-
-    execution_time += execution_time_tmp;
-
-    inputFile.close();  // Close the file
-
-    return added_op;
 }
 
 void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes, size_t max_ent_group_size,
@@ -188,8 +169,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     qc::QuantumComputation newQc(qc.getNqubits());
 
     auto it = qc.begin();
-    size_t added_op = 0;
-    double execution_time = 0.0;
 
     while (it != qc.end()) {
         auto op = (*it).get();
@@ -248,13 +227,13 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 if (!table->purityTest(t)) {
                     if ((*table)[t].isQubitState() && (*table)[t].getQubitState()->getNQubits() <= max_ent_group_size) {
                         // Perform rotation from the current state to |0>
-                        added_op += synthesize_rotation(table, newQc, t, true, execution_time);
+                        synthesize_rotation(table, newQc, t, true);
 
                         // Reset t-th qubit
                         table->resetState(t);
 
                         // Add gates to perform rotation from state |0> to the state before reset
-                        added_op += synthesize_rotation(table, newQc, t, false, execution_time);
+                        synthesize_rotation(table, newQc, t, false);
                     
                         for (auto q : table->qubitsInState((*table)[t].getQubitState())) {
                             table->separate(q);
@@ -279,7 +258,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                         newQc.emplace_back(std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::X, std::vector<qc::fp>(0), op->getStartingQubit()));
                     }
                     else if (_probabilityMeasureZero != 1.0 && _probabilityMeasureOne != 1.0) {
-                        added_op += synthesize_rotation(table, newQc, t, true, execution_time);
+                        synthesize_rotation(table, newQc, t, true);
                     }
                 }
 
@@ -306,14 +285,13 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
 
                     if (_probabilityMeasureZero != 1.0 && _probabilityMeasureOne != 1.0) {
                         // Synthesize the circuit to rotate the state to |0>
-                        added_op += synthesize_rotation(table, newQc, t, true, execution_time);
+                        synthesize_rotation(table, newQc, t, true);
 
                         // Add probabilistc X gate
                         auto tmp = std::make_unique<qc::StandardOperation>(op->getNqubits(), op->getControls(), op->getTargets(), qc::OpType::X, std::vector<qc::fp>(), op->getStartingQubit())->clone();
                         auto probabilisticOp = std::make_unique<qc::ProbabilisticOperation>(tmp, _probabilityMeasureOne);
                         
                         newQc.emplace_back(probabilisticOp);
-                        added_op++;
 
                         classicControlBits[t] = NOT_KNOWN;
                         table->separate(t);
@@ -329,7 +307,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 }
                 else if ((*table)[t].isQubitState() && (*table)[t].getQubitState()->getNQubits() <= max_ent_group_size) {
                     // Synthesize the circuit to rotate the state to |0>
-                    added_op += synthesize_rotation(table, newQc, t, true, execution_time);
+                    synthesize_rotation(table, newQc, t, true);
 
                     qc::Targets targets = table->qubitsInState((*table)[t].getQubitState());
 
@@ -348,7 +326,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     auto probabilisticOp = std::make_unique<qc::BigProbabilisticOperation>(tmp, probabilities, basis_states);
                     newQc.emplace_back(probabilisticOp);
 
-                    added_op += targets.size();
+                    targets.size();
 
                     for (auto i : targets) {
                         classicControlBits[i] = NOT_KNOWN;
@@ -604,9 +582,6 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     for (auto &op: newQc) {
         qc.emplace_back(op->clone());
     }
-
-    std::cout << "Added operations: " << added_op << std::endl;
-    std::cout << "Execution time: " << execution_time << std::endl;
  }
 
 std::shared_ptr<UnionTable> ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplitudes,  size_t max_ent_group_size) {
