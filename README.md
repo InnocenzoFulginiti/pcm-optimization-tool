@@ -36,6 +36,7 @@ h q[1];
 ```
 
 This is a representation of the dynamic circuit:
+
 ![Descrizione dell'immagine](dyn_circ_examp.png)
 
 ## Quantum Constant Propagation
