@@ -16,6 +16,7 @@
 #include "util/Complex.hpp"
 #include "util/BitSet.hpp"
 #include "../extern/qfr/include/operations/OpType.hpp"
+#include "util/ProbGatesUtil.hpp"
 
 #include "../extern/eigen/Eigen/Dense"
 
@@ -132,10 +133,30 @@ public:
     void applyGate(size_t target,
                    const std::vector<size_t> &controls,
                    std::array<Complex, 4> matrix);
+    
+    void applyGate(const size_t target, 
+                   const std::vector<size_t> &controls, 
+                   const std::array<Complex, 4> matrix, 
+                   std::vector<ClassicalRegisterValue> classicControlBits,
+                   size_t bitIndex);
+
+    void applyGate(const size_t target,
+                const std::array<Complex, 4> matrix, 
+                std::vector<ClassicalRegisterValue> classicControlBits,
+                size_t bitIndex);
 
     void applyTwoQubitGate(size_t t1, size_t t2, std::array<std::array<Complex, 4>, 4> mat);
 
     void applyTwoQubitGate(size_t, size_t, const std::vector<size_t> &, std::array<std::array<Complex, 4>, 4>);
+
+    void applyTwoQubitGate(size_t t1, size_t t2, 
+                           std::array<std::array<Complex, 4>, 4> mat, 
+                           std::vector<ClassicalRegisterValue> classicControlBits, size_t bitIndex1, size_t bitIndex2);
+
+    void applyTwoQubitGate(size_t, size_t, 
+                           const std::vector<size_t> &,
+                           std::array<std::array<Complex, 4>, 4>, 
+                           std::vector<ClassicalRegisterValue> classicControlBits, size_t bitIndex1, size_t bitIndex2);
 
     void reorderIndex(size_t oldI, size_t newI);
 

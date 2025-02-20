@@ -356,6 +356,16 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 
                 auto control = ccop.getControlRegister().first;
 
+                // Case in which is not an operation controlled by the specific classical registers for classical controlled operations
+                if (control > classicControlBits.size()) {
+                    for (auto t: op->getTargets()) {
+                        table->setTop(t);
+                        classicControlBits[t] = NOT_KNOWN;
+                    }
+                    newQc.emplace_back(op->clone());
+                    continue;
+                }
+
                 if (classicControlBits[control] == ONE) {
                     std::vector<size_t> controls{};
                     for (qc::Control c: ccop_in->getControls())
@@ -396,13 +406,13 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                         (*table)[target].getQubitState()->applyTwoQubitGate(table->indexInState(target),
                                                             table->indexInState(target_2),
                                                             table->indexInState(min),
-                                                            mat);
+                                                            mat, classicControlBits, target, target_2);
                     }
                     else {
                         auto mat = getMatrix(*ccop_in);
                         (*table)[target].getQubitState()->applyGate(table->indexInState(target),
                                                             table->indexInState(min),
-                                                            mat);
+                                                            mat, classicControlBits, target);
                     }
                     
                     checkAmplitude(table, maxAmplitudes, target);
@@ -499,8 +509,8 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     auto inStateJ = table->indexInState(j);
                     auto inStateMin = table->indexInState(min);
                     (*table)[i].getQubitState()->applyGate(inStateI, {inStateJ}, {0, 1, 1, 0});
-                    (*table)[i].getQubitState()->applyGate(inStateJ, inStateMin, {0, 1, 1, 0});
-                    (*table)[i].getQubitState()->applyGate(inStateI, {inStateJ}, {0, 1, 1, 0});
+                    (*table)[i].getQubitState()->applyGate(inStateJ, inStateMin, {0, 1, 1, 0}, classicControlBits, j);
+                    (*table)[i].getQubitState()->applyGate(inStateI, {inStateJ}, {0, 1, 1, 0}, classicControlBits, i);
                     checkAmplitude(table, maxAmplitudes, i);
                     if ((*table)[i].isQubitState() && (*table)[i].getQubitState()->size() == 0) {
                         table->setTop(i);
@@ -538,7 +548,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             (*table)[t1].getQubitState()->applyTwoQubitGate(table->indexInState(t1),
                                                             table->indexInState(t2),
                                                             table->indexInState(min),
-                                                            twoQubitMat);
+                                                            twoQubitMat, classicControlBits, t1, t2);
 
             checkAmplitude(table, maxAmplitudes, t1);
             if ((*table)[t1].isQubitState() && (*table)[t1].getQubitState()->size() == 0) {
@@ -564,7 +574,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
             auto singleQubitMat = getMatrix(*op);
             (*table)[target].getQubitState()->applyGate(table->indexInState(target),
                                                         table->indexInState(min),
-                                                        singleQubitMat);
+                                                        singleQubitMat, classicControlBits, target);
             checkAmplitude(table, maxAmplitudes, target);
             for (auto t: op->getTargets()) {
                 table->separate(t);
