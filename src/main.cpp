@@ -15,7 +15,7 @@ using namespace std;
 int main(int argc, char *argv[]) {
     // Check if exactly two file paths were provided
     if (argc != 4) {
-        cerr << "Usage: " << argv[0] << " <input_file_path> <output_file_path> <max_ent_group_size>" << endl;
+        cerr << "Usage: " << argv[0] << " <input_file_path> <output_file_path> <n_pcm>" << endl;
         return 1;
     }
 

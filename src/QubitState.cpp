@@ -440,32 +440,6 @@ QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, 
     this->removeZeroEntries();
 }
 
-void
-QubitState::applyGate(const size_t target, const std::array<Complex, 4> matrix, std::vector<ClassicalRegisterValue> classicControlBits, size_t bitIndex) {
-    applyGate(target, matrix);
-    
-    if (probabilityMeasureOne(target) == 1.0)
-        classicControlBits[bitIndex] = ONE;
-    else if (probabilityMeasureZero(target) == 1.0)
-        classicControlBits[bitIndex] = ZERO;
-    else
-        classicControlBits[bitIndex] = NOT_KNOWN;
-
-}
-
-void
-QubitState::applyGate(const size_t target, const std::vector<size_t> &controls, const std::array<Complex, 4> matrix, std::vector<ClassicalRegisterValue> classicControlBits, size_t bitIndex) {
-    applyGate(target, controls, matrix);
-    
-    if (probabilityMeasureOne(target) == 1.0)
-        classicControlBits[bitIndex] = ONE;
-    else if (probabilityMeasureZero(target) == 1.0)
-        classicControlBits[bitIndex] = ZERO;
-    else
-        classicControlBits[bitIndex] = NOT_KNOWN;
-
-}
-
 void QubitState::applyTwoQubitGate(size_t t1, size_t t2, const std::vector<size_t> &controls,
                                    std::array<std::array<Complex, 4>, 4> mat) {
     if (controls.empty()) {
@@ -517,42 +491,6 @@ void QubitState::applyTwoQubitGate(size_t t1, size_t t2,
 
     this->map = newMap;
     this->removeZeroEntries();
-}
-
-void QubitState::applyTwoQubitGate(size_t t1, size_t t2, std::array<std::array<Complex, 4>, 4> mat, std::vector<ClassicalRegisterValue> classicControlBits, size_t bitIndex1, size_t bitIndex2) {
-    applyTwoQubitGate(t1, t2, mat);
-
-    if (probabilityMeasureOne(t1) == 1.0)
-        classicControlBits[bitIndex1] = ONE;
-    else if (probabilityMeasureZero(t1) == 1.0)
-        classicControlBits[bitIndex1] = ZERO;
-    else
-        classicControlBits[bitIndex1] = NOT_KNOWN;
-
-    if (probabilityMeasureOne(t2) == 1.0)
-        classicControlBits[bitIndex2] = ONE;
-    else if (probabilityMeasureZero(t2) == 1.0)
-        classicControlBits[bitIndex2] = ZERO;
-    else
-        classicControlBits[bitIndex2] = NOT_KNOWN;
-}
-
-void QubitState::applyTwoQubitGate(size_t t1, size_t t2, const std::vector<size_t> &controls, std::array<std::array<Complex, 4>, 4> mat, std::vector<ClassicalRegisterValue> classicControlBits, size_t bitIndex1, size_t bitIndex2) {
-    applyTwoQubitGate(t1, t2, controls, mat);
-
-    if (probabilityMeasureOne(t1) == 1.0)
-        classicControlBits[bitIndex1] = ONE;
-    else if (probabilityMeasureZero(t1) == 1.0)
-        classicControlBits[bitIndex1] = ZERO;
-    else
-        classicControlBits[bitIndex1] = NOT_KNOWN;
-
-    if (probabilityMeasureOne(t2) == 1.0)
-        classicControlBits[bitIndex2] = ONE;
-    else if (probabilityMeasureZero(t2) == 1.0)
-        classicControlBits[bitIndex2] = ZERO;
-    else
-        classicControlBits[bitIndex2] = NOT_KNOWN;
 }
 
 QubitState &QubitState::operator*=(const Complex &rhs) {
