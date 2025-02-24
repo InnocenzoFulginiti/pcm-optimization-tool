@@ -347,13 +347,8 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         }
 
         if (op->isClassicControlledOperation()) {
-            if (it - 1 == qc.begin() || (*(it - 2)).get()->getType() != qc::Measure) {
-                for (auto t: op->getTargets()) {
-                    table->setTop(t);
-                }
-                newQc.emplace_back(op->clone());
-            }
-            else {
+            // Check if the previous operation was a measurement operation, if it was not, then do nothing and append the current operation
+            if (it - 1 != qc.begin() && (*(it - 2)).get()->getType() == qc::Measure) {
                 std::unique_ptr<qc::Operation> clonedOp(op->clone());
 
                 // Performing the dynamic cast
@@ -362,6 +357,16 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     qc::Operation* ccop_in = ccop.getOperation();
                     
                     auto control = ccop.getControlRegister().first;
+                    auto meas_op = (*(it - 2)).get();
+                    
+                    // Check if the measurement acts on the qubit corresponding to the register used to classical control the current operation
+                    if (!meas_op->actsOn(control)) {
+                        for (auto t: op->getTargets()) {
+                            table->setTop(t);
+                        }
+                        newQc.emplace_back(op->clone());
+                        continue;
+                    }
 
                     if (classicControlBits[control] == ONE) {
                         std::vector<size_t> controls{};
@@ -459,6 +464,12 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     std::cerr << "Bad cast: " << e.what() << std::endl;
                     
                 }
+            }
+            else {
+                for (auto t: op->getTargets()) {
+                    table->setTop(t);
+                }
+                newQc.emplace_back(op->clone());
             }
             continue;
         }
