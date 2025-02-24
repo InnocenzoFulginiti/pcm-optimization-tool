@@ -117,7 +117,7 @@ void synthesize_rotation(const std::shared_ptr<UnionTable> &table, qc::QuantumCo
 
     auto state_vector = (*table)[t].getQubitState()->toStateVector();
     qc::Targets targets = table->qubitsInState((*table)[t].getQubitState());
-    std::string python_call = "python ../generate_rotation.py ";
+    std::string python_call = "python ../src/util/generate_rotation.py ";
 
     python_call += " \"[";
     python_call += std::to_string(targets[0]);
@@ -169,6 +169,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
     qc::QuantumComputation newQc(qc.getNqubits());
 
     auto it = qc.begin();
+
 
     while (it != qc.end()) {
         auto op = (*it).get();
@@ -237,13 +238,13 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                     
                         for (auto q : table->qubitsInState((*table)[t].getQubitState())) {
                             table->separate(q);
-                            classicControlBits[q] = NOT_KNOWN;
+                            //classicControlBits[q] = NOT_KNOWN;
                         }
                     }
                     else {
                         if ((*table)[t].isQubitState()) {
                             for (auto q : table->qubitsInState((*table)[t].getQubitState())) {
-                                classicControlBits[q] = NOT_KNOWN;
+                                //classicControlBits[q] = NOT_KNOWN;
                             }
                             table->setTop(t);
                         }
@@ -263,7 +264,7 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 }
 
                 table->resetState(t);
-                classicControlBits[t] = ZERO;
+                // classicControlBits[t] = ZERO;
             }
             continue;
         }
@@ -346,111 +347,118 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
         }
 
         if (op->isClassicControlledOperation()) {
+            if (it - 1 == qc.begin() || (*(it - 2)).get()->getType() != qc::Measure) {
+                for (auto t: op->getTargets()) {
+                    table->setTop(t);
+                }
+                newQc.emplace_back(op->clone());
+            }
+            else {
+                std::unique_ptr<qc::Operation> clonedOp(op->clone());
 
-            std::unique_ptr<qc::Operation> clonedOp(op->clone());
-
-            // Performing the dynamic cast
-            try {
-                qc::ClassicControlledOperation& ccop = dynamic_cast<qc::ClassicControlledOperation&>(*clonedOp);
-                qc::Operation* ccop_in = ccop.getOperation();
-                
-                auto control = ccop.getControlRegister().first;
-
-                if (classicControlBits[control] == ONE) {
-                    std::vector<size_t> controls{};
-                    for (qc::Control c: ccop_in->getControls())
-                        controls.emplace_back(c.qubit);
-
-                    auto [act, min] = table->minimizeControls(controls);
-
-                    if (act == NEVER) {
-                        continue;
-                    }
-
-                    ccop_in->getControls().clear();
-                    for (auto c: min) {
-                        ccop_in->getControls().insert({static_cast<unsigned int>(c)});
-                    }
-
-                    newQc.emplace_back(ccop_in->clone());
-                    size_t target = ccop_in->getTargets()[0];
-
-                    // Entangle Control Bits and Targets
-                    table->combine(target, min);
-
-                    if (table->isTop(target)) {
-                        continue;
-                    }
+                // Performing the dynamic cast
+                try {
+                    qc::ClassicControlledOperation& ccop = dynamic_cast<qc::ClassicControlledOperation&>(*clonedOp);
+                    qc::Operation* ccop_in = ccop.getOperation();
                     
-                    if (qc::isTwoQubitGate(ccop_in->getType())) {
-                        auto mat = getTwoQubitMatrix(*ccop_in);
-                        size_t target_2 = op->getTargets()[1];
-                        table->combine(target, target_2);
+                    auto control = ccop.getControlRegister().first;
 
-                        checkAmplitude(table, maxAmplitudes, target);
+                    if (classicControlBits[control] == ONE) {
+                        std::vector<size_t> controls{};
+                        for (qc::Control c: ccop_in->getControls())
+                            controls.emplace_back(c.qubit);
+
+                        auto [act, min] = table->minimizeControls(controls);
+
+                        if (act == NEVER) {
+                            continue;
+                        }
+
+                        ccop_in->getControls().clear();
+                        for (auto c: min) {
+                            ccop_in->getControls().insert({static_cast<unsigned int>(c)});
+                        }
+
+                        newQc.emplace_back(ccop_in->clone());
+                        size_t target = ccop_in->getTargets()[0];
+
+                        // Entangle Control Bits and Targets
+                        table->combine(target, min);
 
                         if (table->isTop(target)) {
                             continue;
                         }
-
-                        (*table)[target].getQubitState()->applyTwoQubitGate(table->indexInState(target),
-                                                            table->indexInState(target_2),
-                                                            table->indexInState(min),
-                                                            mat);
-                    }
-                    else {
-                        auto mat = getMatrix(*ccop_in);
-                        (*table)[target].getQubitState()->applyGate(table->indexInState(target),
-                                                            table->indexInState(min),
-                                                            mat);
-                    }
-                    
-                    checkAmplitude(table, maxAmplitudes, target);
-                    for (auto t: op->getTargets()) {
-                        table->separate(t);
-                    }
-                    for (auto c : op->getControls()) {
-                        table->separate(c.qubit);
-                    }
-                }
-                    
-                else if (classicControlBits[control] == NOT_KNOWN) {
-                    std::vector<size_t> controls{};
-                    for (qc::Control c: ccop_in->getControls())
-                        controls.emplace_back(c.qubit);
-
-                    auto [act, min] = table->minimizeControls(controls);
-
-                    if (act == NEVER) {
-                        continue;
-                    }
-
-                    ccop_in->getControls().clear();
-                    for (auto c: min) {
-                        ccop_in->getControls().insert({static_cast<unsigned int>(c)});
-                    }
-
-                    for (auto c : ccop_in->getControls()) {
-                        table->setTop(c.qubit);
-                    }
-
-                    for (auto t : ccop_in->getTargets()) {
-                        table->setTop(t);
-                    }
-
-                    ccop_in->getControls().insert({static_cast<unsigned int>(control)});
                         
-                    auto new_op = std::make_unique<qc::StandardOperation>(ccop_in->getNqubits(), ccop_in->getControls(), ccop_in->getTargets(), ccop_in->getType(), ccop_in->getParameter(), ccop_in->getStartingQubit());
-                    newQc.emplace_back(new_op);
+                        if (qc::isTwoQubitGate(ccop_in->getType())) {
+                            auto mat = getTwoQubitMatrix(*ccop_in);
+                            size_t target_2 = op->getTargets()[1];
+                            table->combine(target, target_2);
+
+                            checkAmplitude(table, maxAmplitudes, target);
+
+                            if (table->isTop(target)) {
+                                continue;
+                            }
+
+                            (*table)[target].getQubitState()->applyTwoQubitGate(table->indexInState(target),
+                                                                table->indexInState(target_2),
+                                                                table->indexInState(min),
+                                                                mat);
+                        }
+                        else {
+                            auto mat = getMatrix(*ccop_in);
+                            (*table)[target].getQubitState()->applyGate(table->indexInState(target),
+                                                                table->indexInState(min),
+                                                                mat);
+                        }
+                        
+                        checkAmplitude(table, maxAmplitudes, target);
+                        for (auto t: op->getTargets()) {
+                            table->separate(t);
+                        }
+                        for (auto c : op->getControls()) {
+                            table->separate(c.qubit);
+                        }
+                    }
+                        
+                    else if (classicControlBits[control] == NOT_KNOWN) {
+                        std::vector<size_t> controls{};
+                        for (qc::Control c: ccop_in->getControls())
+                            controls.emplace_back(c.qubit);
+
+                        auto [act, min] = table->minimizeControls(controls);
+
+                        if (act == NEVER) {
+                            continue;
+                        }
+
+                        ccop_in->getControls().clear();
+                        for (auto c: min) {
+                            ccop_in->getControls().insert({static_cast<unsigned int>(c)});
+                        }
+
+                        for (auto c : ccop_in->getControls()) {
+                            table->setTop(c.qubit);
+                        }
+
+                        for (auto t : ccop_in->getTargets()) {
+                            table->setTop(t);
+                        }
+
+                        ccop_in->getControls().insert({static_cast<unsigned int>(control)});
+                            
+                        auto new_op = std::make_unique<qc::StandardOperation>(ccop_in->getNqubits(), ccop_in->getControls(), ccop_in->getTargets(), ccop_in->getType(), ccop_in->getParameter(), ccop_in->getStartingQubit());
+                        newQc.emplace_back(new_op);
+                    }
+                    else { // if (classicControlBits[control] == ZERO)
+                        // Add nothing
+                    }
+                    
+                    
+                } catch (const std::bad_cast& e) {
+                    std::cerr << "Bad cast: " << e.what() << std::endl;
+                    
                 }
-                else { // if (classicControlBits[control] == ZERO)
-                    // Add nothing
-                }
-                
-                
-            } catch (const std::bad_cast& e) {
-                std::cerr << "Bad cast: " << e.what() << std::endl;
-                
             }
             continue;
         }
