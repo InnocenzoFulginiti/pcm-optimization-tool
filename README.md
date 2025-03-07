@@ -1,11 +1,11 @@
-# Tool for reducing Mid-circuit Measurements and Resets in Dynamic Circuits
-This tool implements the method for reducing the number of mid-circuit measurements and resets in dynamic circuits proposet in the paper [Reducing Mid-Circuit Measurements via Probabilistic Circuits](https://arxiv.org/abs/2405.13747) and extended in the paper [*under review*](#).
+# Framework for reducing Mid-circuit Measurements and Resets in Dynamic Circuits
+This project implements the method for reducing the number of mid-circuit measurements and resets in dynamic circuits proposet in the paper [Reducing Mid-Circuit Measurements via Probabilistic Circuits](https://arxiv.org/abs/2405.13747) and then extend it to a framework in the paper [*under review*](#).
 
 ## Usage
-This program takes as a file containing a quantum circuit written in QASM 2.0 format and gives as output a QASM file containing the optimized circuit.
+This framework takes as a file containing a quantum circuit written in QASM 2.0 format and gives as output a QASM file containing the optimized circuit.
 
-### Running the program
-To run an instance of the program, execute the following command from the `build` directory:
+### Running the framework
+To run an instance of the framework, execute the following command from the `build` directory:
 ```
 ./qcprop_main <input_file_path> <output_file_path> <n_pcm>
 ```
