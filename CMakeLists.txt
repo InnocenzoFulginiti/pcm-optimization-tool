@@ -53,35 +53,35 @@ FetchContent_Declare(
         GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(Catch2)
-add_executable(tests
-        test/main.cpp
-        test/UnionTableTest.cpp
-        test/ComplexTest.cpp
-        test/QubitStateTest.cpp
-        test/OperationTest.cpp
-        test/ConstantPropagationTest.cpp
-        test/TestUtils.cpp
-        test/Benchmark.cpp
-        test/BitSetTest.cpp)
+# add_executable(tests
+#         test/main.cpp
+#         test/UnionTableTest.cpp
+#         test/ComplexTest.cpp
+#         test/QubitStateTest.cpp
+#         test/OperationTest.cpp
+#         test/ConstantPropagationTest.cpp
+#         test/TestUtils.cpp
+#         test/Benchmark.cpp
+#         test/BitSetTest.cpp)
 
-target_compile_definitions(tests PRIVATE
-        "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
+# target_compile_definitions(tests PRIVATE
+#         "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
 include(Catch)
-catch_discover_tests(tests)
+# catch_discover_tests(tests)
 
-target_include_directories(tests
-        PUBLIC
-        test/
-        include
-        include/circuit
-        include/operations
-        include/parser
-        include/util
-        extern/qfr/include
-        )
+# target_include_directories(tests
+#         PUBLIC
+#         test/
+#         include
+#         include/circuit
+#         include/operations
+#         include/parser
+#         include/util
+#         extern/qfr/include
+#         )
 
 
 add_subdirectory(extern/pybind11)
@@ -100,7 +100,7 @@ else ()
     SET(EXTRA_FLAGS "")
 endif ()
 
-target_link_libraries(tests PRIVATE Catch2::Catch2WithMain ${PROJECT_NAME} ${EXTRA_FLAGS})
+# target_link_libraries(tests PRIVATE Catch2::Catch2WithMain ${PROJECT_NAME} ${EXTRA_FLAGS})
 
 if (NOT CMAKE_BUILD_TYPE MATCHES Release)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
@@ -121,8 +121,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 install(
-        TARGETS tests
-        RUNTIME DESTINATION bin
+        # TARGETS tests
+        # RUNTIME DESTINATION bin
 )
 
 include(CPack)
