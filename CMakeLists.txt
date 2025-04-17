@@ -126,3 +126,5 @@ install(
 )
 
 include(CPack)
+
+########## EXECUTION TIME
