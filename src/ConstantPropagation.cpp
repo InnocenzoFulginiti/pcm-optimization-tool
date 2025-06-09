@@ -295,6 +295,9 @@ void ConstantPropagation::propagate(qc::QuantumComputation &qc, size_t maxAmplit
                 // Check if the classical register belongs to the one used for claassical-controlled operations
                 auto cl_bits = nonUni->getClassics().cbegin();
                 if (*cl_bits >= table->getNQubits()) {
+                    // TODO: 
+                    // Instead of setting directly to top, verify if the outcome measurement is whether 1 or 0 with 100% of probability
+                    // In such a case set the qubit value for propagation accordingly rather than setting it to top
                     table->setTop(t);
                     newQc.emplace_back(op->clone());
                     continue;
