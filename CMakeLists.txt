@@ -58,6 +58,11 @@ include(Catch)
 
 
 
+# Set Python executable and paths explicitly
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+set(PYBIND11_PYTHON_VERSION ${Python3_VERSION})
+set(PYBIND11_PYTHON_INCLUDE_DIRS ${Python3_INCLUDE_DIRS})
+
 add_subdirectory(extern/pybind11)
 
 pybind11_add_module("${PROJECT_NAME}_py" pywrap.cpp)
