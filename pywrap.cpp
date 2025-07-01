@@ -8,7 +8,7 @@ bool fileToFile(const std::string &in, const std::string &out, size_t maxAmpls, 
         qc::QuantumComputation qc(in);
 
         Complex::setEpsilon(threshold);
-        ConstantPropagation::propagate(qc, maxAmpls);
+        ConstantPropagation::propagate(qc, maxAmpls, MAX_ENT_GROUP_SIZE);
 
         std::ofstream fileOut(out, std::ios::out | std::ios::trunc);
         qc.dumpOpenQASM(fileOut);
@@ -26,7 +26,7 @@ std::string optimize(const std::string &in, size_t maxAmpls, double threshold) {
     circuit.import(iss, qc::Format::OpenQASM);
 
     Complex::setEpsilon(threshold);
-    ConstantPropagation::propagate(circuit, maxAmpls);
+    ConstantPropagation::propagate(circuit, maxAmpls, MAX_ENT_GROUP_SIZE);
     std::stringstream oss;
     circuit.dumpOpenQASM(oss);
     return oss.str();
